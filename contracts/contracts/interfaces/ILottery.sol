@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.30;
+pragma solidity 0.8.28;
 
 /**
  * @title ILottery
@@ -88,6 +88,22 @@ interface ILottery {
     /// @notice Emitted when lottery is paused or unpaused
     /// @param isActive New active status
     event LotteryStatusChanged(bool isActive);
+
+    /// @notice Emitted when badge contract address is updated
+    /// @param oldBadgeContract Previous badge contract address
+    /// @param newBadgeContract New badge contract address
+    event BadgeContractUpdated(address indexed oldBadgeContract, address indexed newBadgeContract);
+
+    /// @notice Emitted when badge minting fails for a lottery winner
+    /// @param winner Address of the lottery winner
+    /// @param poolId Associated pool identifier
+    /// @param reason Failure reason (if available)
+    event BadgeMintingFailed(address indexed winner, uint256 indexed poolId, string reason);
+
+    /// @notice Emitted when emergency withdrawal is performed
+    /// @param admin Address that performed the withdrawal
+    /// @param amount Amount withdrawn
+    event EmergencyWithdrawal(address indexed admin, uint256 amount);
 
     /**
      * @notice Request a lottery draw for a specific pool
