@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.30;
+pragma solidity 0.8.28;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -65,10 +65,19 @@ contract LotteryManager is ILottery, AccessControl, ReentrancyGuard, Pausable {
     /**
      * @notice Constructor initializes the lottery manager with default configuration
      * @param admin Address of the initial admin
-     * @param badgeContract Address of the badge NFT contract
+     * @param badgeContract Address of the badge NFT contract (can be zero to disable)
      */
     constructor(address admin, address badgeContract) {
         if (admin == address(0)) revert InvalidConfiguration();
+        
+        // Validate badge contract if not zero address
+        if (badgeContract != address(0)) {
+            uint256 codeSize;
+            assembly {
+                codeSize := extcodesize(badgeContract)
+            }
+            if (codeSize == 0) revert InvalidConfiguration();
+        }
         
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(LOTTERY_ADMIN_ROLE, admin);
@@ -869,7 +878,26 @@ contract LotteryManager is ILottery, AccessControl, ReentrancyGuard, Pausable {
         // Update participant's total prizes
         _totalPrizesWon[winner] += draw.prizeAmount;
         
+        // Mint LotteryWinner badge for the winner
+        _mintWinnerBadge(winner, draw.poolId, draw.prizeAmount);
+        
         emit BonusWinnerSelected(drawId, draw.poolId, winner, draw.prizeAmount, randomSeed);
+    }
+
+    /**
+     * @notice Check if badge contract is valid and ready for operations
+     * @return isValid True if badge contract is available and functional
+     */
+    function _isBadgeContractValid() internal view returns (bool isValid) {
+        if (_badgeContract == address(0)) return false;
+        
+        // Check if badge contract address has code (is a contract)
+        address badgeAddr = _badgeContract;
+        uint256 codeSize;
+        assembly {
+            codeSize := extcodesize(badgeAddr)
+        }
+        return codeSize > 0;
     }
 
     /**
@@ -877,21 +905,52 @@ contract LotteryManager is ILottery, AccessControl, ReentrancyGuard, Pausable {
      * @param winner Address of the lottery winner
      * @param poolId Associated pool identifier
      * @param prizeAmount Prize amount won
+     * @dev This function is called when a winner is selected to mint their lottery winner badge
+     *      Badge minting failures will not revert the lottery operation to ensure core functionality
      */
     function _mintWinnerBadge(address winner, uint256 poolId, uint256 prizeAmount) internal {
-        if (_badgeContract == address(0)) return; // Skip if no badge contract
+        // Input validation
+        if (winner == address(0)) return; // Skip for zero address
+        if (!_isBadgeContractValid()) return; // Skip if badge contract not configured or invalid
         
-        try IBadge(_badgeContract).mintBadge(
-            winner,
-            IBadge.BadgeType.LotteryWinner,
-            poolId,
+        // Prepare badge metadata with comprehensive information
+        bytes memory badgeMetadata = abi.encode(
+            "Lottery Winner",
+            block.timestamp,
             prizeAmount,
-            abi.encode("Lottery Winner", block.timestamp, prizeAmount)
-        ) {
-            // Badge minting successful - continue silently
-        } catch {
-            // Badge minting failed - don't revert the lottery operation
-            // This ensures lottery functionality continues even if badge system fails
+            poolId,
+            block.number
+        );
+        
+        // Use low-level call for better error handling and gas efficiency
+        (bool success, bytes memory data) = _badgeContract.call(
+            abi.encodeWithSelector(
+                IBadge.mintBadge.selector,
+                winner,
+                IBadge.BadgeType.LotteryWinner,
+                poolId,
+                prizeAmount,
+                badgeMetadata
+            )
+        );
+        
+        // Log badge minting failure for debugging without reverting lottery operation
+        if (!success) {
+            // Decode error message for more informative logging
+            string memory failureReason = "Unknown error";
+            if (data.length >= 68) {
+                // Extract revert reason from returndata
+                assembly {
+                    // Skip the first 68 bytes (4 bytes selector + 32 bytes offset + 32 bytes length)
+                    let reasonPtr := add(data, 0x44)
+                    let reasonLength := mload(add(data, 0x24))
+                    failureReason := reasonPtr
+                    mstore(failureReason, reasonLength)
+                }
+            }
+            
+            // Emit dedicated event for badge minting failure
+            emit BadgeMintingFailed(winner, poolId, failureReason);
         }
     }
 
@@ -906,9 +965,25 @@ contract LotteryManager is ILottery, AccessControl, ReentrancyGuard, Pausable {
     /**
      * @notice Set the badge contract address (admin only)
      * @param badgeContract New badge contract address
+     * @dev Validates that the new address is either zero (to disable badges) or a valid contract
      */
     function setBadgeContract(address badgeContract) external onlyRole(LOTTERY_ADMIN_ROLE) {
+        address oldBadgeContract = _badgeContract;
+        
+        // Allow setting to zero address to disable badge functionality
+        if (badgeContract != address(0)) {
+            // Validate that the address contains contract code
+            uint256 codeSize;
+            assembly {
+                codeSize := extcodesize(badgeContract)
+            }
+            if (codeSize == 0) revert InvalidConfiguration();
+        }
+        
         _badgeContract = badgeContract;
+        
+        // Emit dedicated event for badge contract changes
+        emit BadgeContractUpdated(oldBadgeContract, badgeContract);
     }
 
     /**
@@ -931,10 +1006,13 @@ contract LotteryManager is ILottery, AccessControl, ReentrancyGuard, Pausable {
      * @param amount Amount to withdraw
      * @dev Only for emergency situations, not normal operations
      */
-    function emergencyWithdraw(uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function emergencyWithdraw(uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) nonReentrant {
+        if (amount == 0) revert InvalidConfiguration();
         if (amount > address(this).balance) revert InsufficientPrizePool();
         
         (bool success, ) = msg.sender.call{value: amount}("");
         if (!success) revert TransferFailed();
+        
+        emit EmergencyWithdrawal(msg.sender, amount);
     }
 }

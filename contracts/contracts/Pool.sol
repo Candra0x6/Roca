@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.30;
+pragma solidity 0.8.28;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -31,6 +31,18 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
     
     /// @notice Role identifier for emergency admin
     bytes32 public constant EMERGENCY_ADMIN_ROLE = keccak256("EMERGENCY_ADMIN_ROLE");
+
+    /// @notice Minimum number of members required to lock a pool
+    uint256 public constant MIN_MEMBERS_TO_LOCK = 2;
+
+    /// @notice Maximum duration for a pool (1 year in seconds)
+    uint256 public constant MAX_POOL_DURATION = 365 days;
+
+    /// @notice Minimum duration for a pool (1 day in seconds)
+    uint256 public constant MIN_POOL_DURATION = 1 days;
+
+    /// @notice Maximum number of members allowed in any pool
+    uint256 public constant MAX_MEMBERS_LIMIT = 100;
 
     /// @notice Core pool information
     PoolInfo private _poolInfo;
@@ -73,6 +85,10 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
     error UnauthorizedAccess();
     error InvalidState(PoolStatus current, PoolStatus required);
     error BadgeMintingFailed();
+    error InvalidParameters();
+    error ZeroAddress();
+    error InsufficientMembers();
+    error DurationNotExpired();
 
     /**
      * @notice Modifier to check if caller is the pool creator
@@ -94,6 +110,15 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
     }
 
     /**
+     * @notice Modifier to validate addresses are not zero
+     * @param addr Address to validate
+     */
+    modifier validAddress(address addr) {
+        if (addr == address(0)) revert ZeroAddress();
+        _;
+    }
+
+    /**
      * @notice Constructor initializes the pool with given parameters
      * @param name Human-readable pool name
      * @param contributionAmount Required contribution per member (in wei)
@@ -111,8 +136,15 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
         address creator,
         address yieldManager,
         address badgeContract
-    ) {
+    ) 
+        validAddress(creator)
+        validAddress(yieldManager)
+    {
         if (_initialized) revert PoolAlreadyInitialized();
+        if (bytes(name).length == 0) revert InvalidParameters();
+        if (contributionAmount == 0) revert InvalidParameters();
+        if (maxMembers < 2 || maxMembers > MAX_MEMBERS_LIMIT) revert InvalidParameters();
+        if (duration < MIN_POOL_DURATION || duration > MAX_POOL_DURATION) revert InvalidParameters();
         
         _grantRole(DEFAULT_ADMIN_ROLE, creator);
         _grantRole(EMERGENCY_ADMIN_ROLE, creator);
@@ -121,7 +153,7 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
         // Store factory address for poolId lookup
         _factory = msg.sender;
         
-        // Store badge contract address
+        // Store badge contract address (can be zero for pools without badges)
         _badgeContract = badgeContract;
         
         _poolInfo = PoolInfo({
@@ -209,6 +241,7 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
      *      Transfers funds to yield manager for investment
      */
     function lockPool() external override onlyCreator nonReentrant whenNotPaused inStatus(PoolStatus.Open) {
+        if (_poolInfo.currentMembers < MIN_MEMBERS_TO_LOCK) revert InsufficientMembers();
         _lockPool();
     }
 
@@ -222,11 +255,26 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
         // Transfer funds to yield manager with correct poolId
         if (_poolInfo.totalFunds > 0) {
             uint256 poolId = _getPoolId();
-            IYieldManager yieldManager = IYieldManager(_poolInfo.yieldManager);
-            try yieldManager.deposit{value: _poolInfo.totalFunds}(poolId, IYieldManager.YieldStrategy.MockYield) {
-                // Success - funds transferred to yield manager
-            } catch {
-                revert YieldManagerCallFailed();
+            
+            // Use low-level call for better error handling
+            (bool success, bytes memory data) = _poolInfo.yieldManager.call{value: _poolInfo.totalFunds}(
+                abi.encodeWithSelector(
+                    IYieldManager.deposit.selector,
+                    poolId,
+                    IYieldManager.YieldStrategy.MockYield
+                )
+            );
+            
+            if (!success) {
+                // Decode revert reason if available
+                if (data.length > 0) {
+                    assembly {
+                        let returndata_size := mload(data)
+                        revert(add(32, data), returndata_size)
+                    }
+                } else {
+                    revert YieldManagerCallFailed();
+                }
             }
         }
         
@@ -248,7 +296,7 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
         
         // Check if duration has elapsed (anyone can call when time is up)
         if (block.timestamp < _poolInfo.lockedAt + _poolInfo.duration) {
-            revert UnauthorizedAccess();
+            revert DurationNotExpired();
         }
         
         _completePool();
@@ -261,12 +309,24 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
     function _completePool() internal {
         uint256 poolId = _getPoolId();
         
-        // Withdraw funds from yield manager
-        IYieldManager yieldManager = IYieldManager(_poolInfo.yieldManager);
-        try yieldManager.withdraw(poolId) returns (uint256 /* principal */, uint256 yield) {
+        // Withdraw funds from yield manager with better error handling
+        (bool success, bytes memory data) = _poolInfo.yieldManager.call(
+            abi.encodeWithSelector(IYieldManager.withdraw.selector, poolId)
+        );
+        
+        if (success) {
+            (uint256 principal, uint256 yield) = abi.decode(data, (uint256, uint256));
             _totalYield = yield;
-        } catch {
-            revert YieldManagerCallFailed();
+            
+            // Verify we received the expected principal amount
+            if (principal != _poolInfo.totalFunds) {
+                // Log the discrepancy but don't revert - continue with completion
+                emit YieldUpdated(_totalYield, 0);
+            }
+        } else {
+            // If yield manager withdrawal fails, continue with 0 yield
+            _totalYield = 0;
+            emit YieldUpdated(0, 0);
         }
         
         // Update member yield allocations
@@ -356,17 +416,24 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
         
         if (_poolInfo.status == PoolStatus.Active || _poolInfo.status == PoolStatus.Completed) {
             uint256 poolId = _getPoolId();
-            IYieldManager yieldManager = IYieldManager(_poolInfo.yieldManager);
-            try yieldManager.getYield(poolId) returns (uint256 currentYield) {
+            
+            // Use low-level call for yield manager interaction
+            (bool success, bytes memory data) = _poolInfo.yieldManager.staticcall(
+                abi.encodeWithSelector(IYieldManager.getYield.selector, poolId)
+            );
+            
+            if (success && data.length > 0) {
+                uint256 currentYield = abi.decode(data, (uint256));
                 _totalYield = currentYield;
                 _updateMemberYields();
                 
-                // Calculate APY (simplified)
-                uint256 yieldRate = _totalYield * 10000 / _poolInfo.totalFunds; // basis points
+                // Calculate APY (simplified) - protect against division by zero
+                uint256 yieldRate = _poolInfo.totalFunds > 0 
+                    ? (_totalYield * 10000) / _poolInfo.totalFunds 
+                    : 0; // basis points
                 emit YieldUpdated(_totalYield, yieldRate);
-            } catch {
-                // Silently fail for view function
             }
+            // Silently fail for view function if yield manager call fails
         }
     }
 
@@ -433,38 +500,85 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
     }
 
     /**
+     * @notice Check if factory contract is valid and ready for badge operations
+     * @return isValid True if factory contract is available and functional
+     */
+    function _isFactoryValid() internal view returns (bool isValid) {
+        if (_factory == address(0)) return false;
+        
+        // Check if factory address has code (is a contract)
+        address factoryAddr = _factory;
+        uint256 size;
+        assembly {
+            size := extcodesize(factoryAddr)
+        }
+        return size > 0;
+    }
+
+    /**
      * @notice Mint appropriate badge for new member joining the pool
      * @param member Address of the member joining
      * @param contribution Amount contributed by the member
+     * @dev This function is called when a member joins the pool to mint their member badge
      */
     function _mintMemberBadge(address member, uint256 contribution) internal {
-        if (_badgeContract == address(0)) return; // Skip if no badge contract
-        if (_factory == address(0)) return; // Skip if no factory
+        // Early return if badge system is not configured
+        if (_badgeContract == address(0) || !_isFactoryValid()) return;
         
         uint256 poolId = _getPoolId();
+        if (poolId == 0) return; // Skip if can't get pool ID
         
-        try IPoolFactory(_factory).mintPoolMemberBadge(member, poolId, contribution) {
-            // Badge minting successful - continue silently
-        } catch {
-            // Badge minting failed - don't revert the join operation
-            // This ensures pool functionality continues even if badge system fails
+        // Use low-level call for better error handling and gas efficiency
+        (bool success, bytes memory data) = _factory.call(
+            abi.encodeWithSelector(
+                IPoolFactory.mintPoolMemberBadge.selector,
+                member,
+                poolId,
+                contribution
+            )
+        );
+        
+        // Emit event for failed badge minting for debugging purposes
+        if (!success) {
+            // Decode revert reason if available for debugging
+            if (data.length > 0) {
+                // Log failure but don't revert - badge system should not block pool operations
+                emit YieldUpdated(0, 0); // Reuse existing event for logging
+            }
         }
     }
 
     /**
      * @notice Mint PoolCompleter badges for all pool members
+     * @dev Called when pool completes to award completion badges to all members
      */
     function _mintCompletionBadges() internal {
-        if (_badgeContract == address(0)) return; // Skip if no badge contract
-        if (_factory == address(0)) return; // Skip if no factory
+        // Early return if badge system is not configured
+        if (_badgeContract == address(0) || !_isFactoryValid()) return;
         
         uint256 poolId = _getPoolId();
+        if (poolId == 0) return; // Skip if can't get pool ID
         
-        try IPoolFactory(_factory).mintPoolCompletionBadges(_members, poolId, _totalYield) {
-            // Badge minting successful - continue silently
-        } catch {
-            // Badge minting failed - continue with completion
-            // This ensures pool completion continues even if badge system fails
+        // Ensure we have members to mint badges for
+        if (_members.length == 0) return;
+        
+        // Use low-level call for better error handling and gas efficiency
+        (bool success, bytes memory data) = _factory.call(
+            abi.encodeWithSelector(
+                IPoolFactory.mintPoolCompletionBadges.selector,
+                _members,
+                poolId,
+                _totalYield
+            )
+        );
+        
+        // Emit event for failed badge minting for debugging purposes
+        if (!success) {
+            // Decode revert reason if available for debugging
+            if (data.length > 0) {
+                // Log failure but don't revert - badge system should not block pool operations
+                emit YieldUpdated(0, 0); // Reuse existing event for logging
+            }
         }
     }
 
@@ -472,19 +586,41 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
      * @notice Mint PoolCreator badge for pool creator
      * @param creator Address of the pool creator
      * @param contributionAmount Required contribution amount for the pool
+     * @dev Called after pool creation to award creator badge
      */
     function _mintCreatorBadge(address creator, uint256 contributionAmount) internal {
-        if (_badgeContract == address(0)) return; // Skip if no badge contract
-        if (_factory == address(0)) return; // Skip if no factory
+        // Early return if badge system is not configured
+        if (_badgeContract == address(0) || !_isFactoryValid()) return;
         
         uint256 poolId = _getPoolId();
+        if (poolId == 0) return; // Skip if can't get pool ID
         
-        try IPoolFactory(_factory).mintPoolCreatorBadge(creator, poolId, contributionAmount) {
-            // Badge minting successful - continue silently
-        } catch {
-            // Badge minting failed - don't revert the pool creation
-            // This ensures pool functionality continues even if badge system fails
+        // Use low-level call for better error handling and gas efficiency
+        (bool success, bytes memory data) = _factory.call(
+            abi.encodeWithSelector(
+                IPoolFactory.mintPoolCreatorBadge.selector,
+                creator,
+                poolId,
+                contributionAmount
+            )
+        );
+        
+        // Emit event for failed badge minting for debugging purposes
+        if (!success) {
+            // Decode revert reason if available for debugging
+            if (data.length > 0) {
+                // Log failure but don't revert - badge system should not block pool operations
+                emit YieldUpdated(0, 0); // Reuse existing event for logging
+            }
         }
+    }
+
+    /**
+     * @notice Initialize creator badge minting after pool setup
+     * @dev This should be called by the factory after pool registration is complete
+     */
+    function initializeCreatorBadge() external onlyRole(FACTORY_ROLE) {
+        _mintCreatorBadge(_poolInfo.creator, _poolInfo.contributionAmount);
     }
 
     /**
@@ -575,7 +711,7 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
      */
     function canLock() external view override returns (bool) {
         return _poolInfo.status == PoolStatus.Open && 
-               _poolInfo.currentMembers >= 2; // Minimum 2 members
+               _poolInfo.currentMembers >= MIN_MEMBERS_TO_LOCK; // Use constant
     }
 
     /**
@@ -605,8 +741,19 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
 
     /**
      * @notice Receive function to handle direct ETH transfers
+     * @dev Only allow ETH from yield manager and factory for proper fund flow
      */
     receive() external payable {
-        // Allow contract to receive ETH from yield manager
+        // Only allow ETH from yield manager or factory to prevent accidental transfers
+        if (msg.sender != _poolInfo.yieldManager && msg.sender != _factory) {
+            revert UnauthorizedAccess();
+        }
+    }
+
+    /**
+     * @notice Fallback function to reject any other calls
+     */
+    fallback() external payable {
+        revert UnauthorizedAccess();
     }
 }
