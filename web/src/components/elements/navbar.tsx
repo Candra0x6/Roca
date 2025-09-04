@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Home, Users, Plus, UserPlus, Trophy, TrendingUp, Settings, Wallet, Menu, X } from "lucide-react"
+import WalletButton from '../wallet-button'
 function Navbar() {
     const pathname = usePathname()
     const [isConnected, setIsConnected] = useState(false)
@@ -63,6 +64,7 @@ function Navbar() {
                             </Link>
                         )
                     })}
+                    <WalletButton />
                 </div>
             </div>
             {/* Mobile Navigation */}

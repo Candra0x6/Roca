@@ -29,6 +29,7 @@
     - Consider using custom error types or error factories for consistent error handling.
   
   React/Next.js
+  -  Separate hooks (e.g., `useHooks`) for reusability
   - Use functional components and TypeScript interfaces.
   - Use declarative JSX.
   - Use function, not const, for components.

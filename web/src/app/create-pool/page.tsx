@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import { ArrowLeft, Plus, DollarSign, Users, Copy, CheckCircle, AlertCircle, Loader2, Clock, Gift } from "lucide-react"
 import Link from "next/link"
+import { useAccount, useBalance } from "wagmi"
+import { parseEther, formatEther } from "viem"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,52 +13,41 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import DotGridShader from "@/components/DotGridShader"
 import AnimatedHeading from "@/components/animated-heading"
 import RevealOnView from "@/components/reveal-on-view"
-
-interface TokenBalance {
-  symbol: string
-  balance: string
-  decimals: number
-}
+import { useCreatePool } from "@/hooks/usePoolFactory"
 
 interface CreatePoolForm {
   poolName: string
   contributionAmount: string
-  selectedToken: string
   poolSize: string
   duration: string
-  bonusPrizeSource: string
 }
 
 export default function CreatePool() {
-  const [userAddress] = useState<string>("0x742d35Cc6634C0532925a3b8D4C9db96590b5b8c")
-  const [tokenBalances, setTokenBalances] = useState<TokenBalance[]>([])
-  const [isLoadingBalances, setIsLoadingBalances] = useState(true)
-  const [isCreating, setIsCreating] = useState(false)
-  const [createdPool, setCreatedPool] = useState<{ id: string; inviteLink: string } | null>(null)
+  const { address: userAddress, isConnected } = useAccount()
+  const { data: ethBalance } = useBalance({
+    address: userAddress,
+  })
+
+  // Smart contract hooks
+  const { createPool, isLoading: isCreatingPool, isSuccess, error: contractError, hash } = useCreatePool()
+
   const [formData, setFormData] = useState<CreatePoolForm>({
     poolName: "",
     contributionAmount: "",
-    selectedToken: "",
     poolSize: "",
     duration: "",
-    bonusPrizeSource: "",
   })
   const [errors, setErrors] = useState<Partial<CreatePoolForm>>({})
+  const [createdPool, setCreatedPool] = useState<{ id: string; inviteLink: string; hash: string } | null>(null)
 
+  // Handle successful transaction
   useEffect(() => {
-    // Simulate fetching token balances
-    console.log("[v0] Fetching token balances for user:", userAddress)
-
-    setTimeout(() => {
-      const mockBalances: TokenBalance[] = [
-        { symbol: "SOL", balance: "12.45", decimals: 9 },
-        { symbol: "USDC", balance: "2,850.00", decimals: 6 },
-        { symbol: "ETH", balance: "1.8", decimals: 18 },
-      ]
-      setTokenBalances(mockBalances)
-      setIsLoadingBalances(false)
-    }, 1000)
-  }, [userAddress])
+    if (isSuccess && hash) {
+      const poolId = `pool-${hash.slice(0, 8)}`
+      const inviteLink = `${window.location.origin}/join-pool/${poolId}`
+      setCreatedPool({ id: poolId, inviteLink, hash })
+    }
+  }, [isSuccess, hash])
 
   const validateForm = (): boolean => {
     const newErrors: Partial<CreatePoolForm> = {}
@@ -67,37 +58,25 @@ export default function CreatePool() {
 
     if (!formData.contributionAmount || Number.parseFloat(formData.contributionAmount) <= 0) {
       newErrors.contributionAmount = "Valid contribution amount is required"
-    } else if (Number.parseFloat(formData.contributionAmount) < 0.1) {
-      newErrors.contributionAmount = "Minimum contribution is 0.1"
+    } else if (Number.parseFloat(formData.contributionAmount) < 0.01) {
+      newErrors.contributionAmount = "Minimum contribution is 0.01 ETH"
     } else if (Number.parseFloat(formData.contributionAmount) > 100) {
-      newErrors.contributionAmount = "Maximum contribution is 100"
+      newErrors.contributionAmount = "Maximum contribution is 100 ETH"
     }
 
-    if (!formData.selectedToken) {
-      newErrors.selectedToken = "Please select a token"
-    }
-
-    if (!formData.poolSize || Number.parseInt(formData.poolSize) < 5 || Number.parseInt(formData.poolSize) > 100) {
-      newErrors.poolSize = "Pool size must be between 5 and 100 members"
+    if (!formData.poolSize || Number.parseInt(formData.poolSize) < 2 || Number.parseInt(formData.poolSize) > 100) {
+      newErrors.poolSize = "Pool size must be between 2 and 100 members"
     }
 
     if (!formData.duration) {
       newErrors.duration = "Please select a duration"
     }
 
-    if (!formData.bonusPrizeSource) {
-      newErrors.bonusPrizeSource = "Please select a bonus prize source"
-    }
-
-    // Check if user has sufficient balance for initial deposit
-    if (formData.selectedToken && formData.contributionAmount) {
-      const selectedTokenBalance = tokenBalances.find((t) => t.symbol === formData.selectedToken)
-      if (
-        selectedTokenBalance &&
-        Number.parseFloat(formData.contributionAmount) >
-          Number.parseFloat(selectedTokenBalance.balance.replace(/,/g, ""))
-      ) {
-        newErrors.contributionAmount = "Insufficient balance for initial deposit"
+    // Check if user has sufficient ETH balance
+    if (formData.contributionAmount && ethBalance) {
+      const contributionInWei = parseEther(formData.contributionAmount)
+      if (contributionInWei > ethBalance.value) {
+        newErrors.contributionAmount = "Insufficient ETH balance"
       }
     }
 
@@ -105,32 +84,42 @@ export default function CreatePool() {
     return Object.keys(newErrors).length === 0
   }
 
+  const getDurationInSeconds = (duration: string): number => {
+    switch (duration) {
+      case "7-days": return 7 * 24 * 60 * 60
+      case "14-days": return 14 * 24 * 60 * 60
+      case "30-days": return 30 * 24 * 60 * 60
+      case "90-days": return 90 * 24 * 60 * 60
+      default: return 30 * 24 * 60 * 60
+    }
+  }
+
   const handleCreatePool = async () => {
+    if (!isConnected) {
+      console.error("Wallet not connected")
+      return
+    }
+
     if (!validateForm()) return
 
-    setIsCreating(true)
-    console.log("[v0] Creating pool with data:", formData)
-
     try {
-      // Simulate smart contract call
-      await new Promise((resolve) => setTimeout(resolve, 3000))
+      console.log("[CreatePool] Creating pool with data:", formData)
 
-      const poolId = `pool-${Date.now()}`
-      const inviteLink = `https://rosca-app.com/join-pool/${poolId}`
-
-      setCreatedPool({ id: poolId, inviteLink })
-      console.log("[v0] Pool created successfully:", poolId)
+      await createPool({
+        name: formData.poolName,
+        contributionAmount: formData.contributionAmount,
+        maxMembers: Number.parseInt(formData.poolSize),
+        duration: getDurationInSeconds(formData.duration),
+      })
     } catch (error) {
-      console.error("[v0] Error creating pool:", error)
-    } finally {
-      setIsCreating(false)
+      console.error("[CreatePool] Error creating pool:", error)
     }
   }
 
   const copyInviteLink = () => {
     if (createdPool) {
       navigator.clipboard.writeText(createdPool.inviteLink)
-      console.log("[v0] Invite link copied to clipboard")
+      console.log("[CreatePool] Invite link copied to clipboard")
     }
   }
 
@@ -139,10 +128,8 @@ export default function CreatePool() {
     setFormData({
       poolName: "",
       contributionAmount: "",
-      selectedToken: "",
       poolSize: "",
       duration: "",
-      bonusPrizeSource: "",
     })
     setErrors({})
   }
@@ -176,24 +163,6 @@ export default function CreatePool() {
                   members and start earning yield together.
                 </p>
 
-                <div className="bg-neutral-800/50 rounded-2xl p-6 mb-8">
-                  <Label className="text-sm font-medium text-white/70 mb-2 block">Pool Invite Link</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={createdPool.inviteLink}
-                      readOnly
-                      className="bg-neutral-700/50 border-white/20 text-white font-mono text-sm"
-                    />
-                    <Button
-                      onClick={copyInviteLink}
-                      variant="outline"
-                      className="rounded-full border-white/20 text-white hover:bg-white/10 bg-transparent px-4"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Link href="/dashboard">
                     <Button className="rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0">
@@ -219,7 +188,7 @@ export default function CreatePool() {
   return (
     <main className="bg-neutral-950 text-white min-h-screen">
       <div className="px-4 pt-4 pb-16">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           {/* Header */}
           <RevealOnView
             as="header"
@@ -235,7 +204,7 @@ export default function CreatePool() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="rounded-full border-white/20 text-white hover:bg-white/10 bg-transparent"
+                  className="rounded-full border-white/20 text-white hover:bg-white/10 bg-transparent hover:text-white"
                 >
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back
@@ -309,40 +278,17 @@ export default function CreatePool() {
 
                   <div className="space-y-2">
                     <Label className="text-sm font-medium text-white">Token</Label>
-                    {isLoadingBalances ? (
-                      <div className="h-10 bg-neutral-800/50 border border-white/20 rounded-md flex items-center justify-center">
-                        <Loader2 className="h-4 w-4 animate-spin text-white/50" />
+                    <div className="h-10 bg-neutral-800/50 border border-white/20 rounded-md flex items-center px-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-white">ETH</span>
+                        {ethBalance && (
+                          <span className="text-white/70 text-sm">
+                            Balance: {Number(formatEther(ethBalance.value)).toFixed(4)} ETH
+                          </span>
+                        )}
                       </div>
-                    ) : (
-                      <Select
-                        value={formData.selectedToken}
-                        onValueChange={(value) => setFormData({ ...formData, selectedToken: value })}
-                      >
-                        <SelectTrigger className="bg-neutral-800/50 border-white/20 text-white">
-                          <SelectValue placeholder="Select token" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-neutral-800 border-white/20">
-                          {tokenBalances.map((token) => (
-                            <SelectItem
-                              key={token.symbol}
-                              value={token.symbol}
-                              className="text-white hover:bg-neutral-700"
-                            >
-                              <div className="flex justify-between items-center w-full">
-                                <span>{token.symbol}</span>
-                                <span className="text-white/70 text-sm ml-4">Balance: {token.balance}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    {errors.selectedToken && (
-                      <p className="text-red-400 text-sm flex items-center gap-1">
-                        <AlertCircle className="h-3 w-3" />
-                        {errors.selectedToken}
-                      </p>
-                    )}
+                    </div>
+                    <p className="text-xs text-white/50">Pool contributions are in ETH</p>
                   </div>
                 </div>
 
@@ -356,14 +302,14 @@ export default function CreatePool() {
                     <Input
                       id="poolSize"
                       type="number"
-                      min="5"
+                      min="2"
                       max="100"
-                      placeholder="20"
+                      placeholder="10"
                       value={formData.poolSize}
                       onChange={(e) => setFormData({ ...formData, poolSize: e.target.value })}
-                      className="bg-neutral-800/50 border-white/20 text-white placeholder:text-white/50"
+                      className="bg-neutral-800/50 border-white/20 text-white placeholder:text-white/50 w-full"
                     />
-                    <p className="text-xs text-white/50">Min: 5 | Max: 100 members</p>
+                    <p className="text-xs text-white/50">Min: 2 | Max: 100 members</p>
                     {errors.poolSize && (
                       <p className="text-red-400 text-sm flex items-center gap-1">
                         <AlertCircle className="h-3 w-3" />
@@ -372,7 +318,7 @@ export default function CreatePool() {
                     )}
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2 w-full">
                     <Label className="text-sm font-medium text-white">
                       <Clock className="inline h-4 w-4 mr-1" />
                       Duration
@@ -381,18 +327,21 @@ export default function CreatePool() {
                       value={formData.duration}
                       onValueChange={(value) => setFormData({ ...formData, duration: value })}
                     >
-                      <SelectTrigger className="bg-neutral-800/50 border-white/20 text-white">
+                      <SelectTrigger className="bg-neutral-800/50 border-white/20 text-white w-full">
                         <SelectValue placeholder="Select duration" />
                       </SelectTrigger>
                       <SelectContent className="bg-neutral-800 border-white/20">
-                        <SelectItem value="3months" className="text-white hover:bg-neutral-700">
-                          3 Months
+                        <SelectItem value="7-days" className="text-white hover:bg-neutral-700">
+                          7 Days
                         </SelectItem>
-                        <SelectItem value="6months" className="text-white hover:bg-neutral-700">
-                          6 Months
+                        <SelectItem value="14-days" className="text-white hover:bg-neutral-700">
+                          14 Days
                         </SelectItem>
-                        <SelectItem value="12months" className="text-white hover:bg-neutral-700">
-                          12 Months
+                        <SelectItem value="30-days" className="text-white hover:bg-neutral-700">
+                          30 Days
+                        </SelectItem>
+                        <SelectItem value="90-days" className="text-white hover:bg-neutral-700">
+                          90 Days
                         </SelectItem>
                       </SelectContent>
                     </Select>
@@ -405,82 +354,63 @@ export default function CreatePool() {
                   </div>
                 </div>
 
-                {/* Weekly Bonus Prize Source */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-white">
-                    <Gift className="inline h-4 w-4 mr-1" />
-                    Weekly Bonus Prize Source
-                  </Label>
-                  <Select
-                    value={formData.bonusPrizeSource}
-                    onValueChange={(value) => setFormData({ ...formData, bonusPrizeSource: value })}
-                  >
-                    <SelectTrigger className="bg-neutral-800/50 border-white/20 text-white">
-                      <SelectValue placeholder="Select bonus prize source" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-neutral-800 border-white/20">
-                      <SelectItem value="staking-yield" className="text-white hover:bg-neutral-700">
-                        <div className="flex flex-col items-start">
-                          <span>From Staking Yield</span>
-                          <span className="text-xs text-white/60">Uses portion of generated yield for prizes</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="sponsor-external" className="text-white hover:bg-neutral-700">
-                        <div className="flex flex-col items-start">
-                          <span>Sponsor/External Prize</span>
-                          <span className="text-xs text-white/60">External funding for bonus prizes</span>
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {errors.bonusPrizeSource && (
-                    <p className="text-red-400 text-sm flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      {errors.bonusPrizeSource}
-                    </p>
-                  )}
-                </div>
-
                 {/* Pool Summary */}
-                {formData.contributionAmount && formData.selectedToken && formData.poolSize && formData.duration && (
+                {formData.contributionAmount && formData.poolSize && formData.duration && (
                   <div className="bg-neutral-800/30 rounded-2xl p-4 border border-white/10">
                     <h4 className="font-semibold text-white mb-2">Pool Summary</h4>
                     <div className="text-sm text-white/70 space-y-1">
                       <p>
                         • Total pool size:{" "}
                         {(Number.parseFloat(formData.contributionAmount) * Number.parseInt(formData.poolSize)).toFixed(
-                          2,
+                          4,
                         )}{" "}
-                        {formData.selectedToken}
+                        ETH
                       </p>
-                      <p>• Duration: {formData.duration.replace("months", " months")}</p>
-                      <p>• Expected APY: ~5-8% (via Marinade staking)</p>
-                      <p>
-                        • Weekly bonus prizes:{" "}
-                        {formData.bonusPrizeSource === "staking-yield" ? "From yield" : "External sponsor"}
-                      </p>
+                      <p>• Duration: {formData.duration.replace("-", " ").replace("days", " days")}</p>
+                      <p>• Expected APY: ~5% (via yield staking)</p>
+                      <p>• Weekly lottery prizes: Funded from pool yield</p>
                     </div>
                   </div>
                 )}
 
                 {/* Create Button */}
-                <Button
-                  onClick={handleCreatePool}
-                  disabled={isCreating || isLoadingBalances}
-                  className="w-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0 h-12"
-                >
-                  {isCreating ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Creating Pool...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Pool
-                    </>
+                <div className="space-y-3">
+                  {contractError && (
+                    <div className="bg-red-900/20 border border-red-500/20 rounded-lg p-3">
+                      <p className="text-red-400 text-sm flex items-center gap-1">
+                        <AlertCircle className="h-4 w-4" />
+                        {contractError}
+                      </p>
+                    </div>
                   )}
-                </Button>
+
+                  <Button
+                    onClick={handleCreatePool}
+                    disabled={isCreatingPool || !isConnected}
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl border-white/20 text-white hover:bg-white/10 bg-transparent hover:text-white w-full py-5"
+                  >
+                    {isCreatingPool ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Creating Pool...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Pool
+                      </>
+                    )}
+                  </Button>
+
+                  {!isConnected && (
+                    <p className="text-yellow-400 text-sm text-center flex items-center justify-center gap-1">
+                      <AlertCircle className="h-4 w-4" />
+                      Please connect your wallet to create a pool
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </RevealOnView>

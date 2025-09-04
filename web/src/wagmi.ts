@@ -1,22 +1,28 @@
 import { cookieStorage, createConfig, createStorage, http } from 'wagmi'
-import { mainnet, sepolia } from 'wagmi/chains'
-import { baseAccount, injected, walletConnect } from 'wagmi/connectors'
+import { mainnet, sepolia, hardhat } from 'wagmi/chains'
+import { injected, walletConnect, metaMask } from 'wagmi/connectors'
 
 export function getConfig() {
+  const projectId = process.env.NEXT_PUBLIC_WC_PROJECT_ID || '52752c5aca18cc94810cbad1984bc8a6'
+  
   return createConfig({
-    chains: [mainnet, sepolia],
+    chains: [hardhat, sepolia, mainnet],
     connectors: [
-      injected(),
-      baseAccount(),
-      walletConnect({ projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID! }),
+      metaMask(),
+      injected({ target: 'metaMask' }),
+      walletConnect({ 
+        projectId,
+       
+      }),
     ],
     storage: createStorage({
       storage: cookieStorage,
     }),
     ssr: true,
     transports: {
-      [mainnet.id]: http(),
+      [hardhat.id]: http('http://127.0.0.1:8545'),
       [sepolia.id]: http(),
+      [mainnet.id]: http(),
     },
   })
 }

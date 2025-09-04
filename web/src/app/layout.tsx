@@ -3,11 +3,12 @@ import type { Metadata } from "next"
 import "./globals.css"
 import { NotificationProvider } from "@/components/notifications/notification-provider"
 import Navbar from "@/components/elements/navbar"
+import { WagmiProvider } from "@/components/providers/wagmi-provider"
 
 export const metadata: Metadata = {
-  title: "v0 App",
-  description: "Created with v0",
-  generator: "v0.dev",
+  title: "Arisan+ | Decentralized Social Saving",
+  description: "Join collaborative savings pools with DeFi yields and gamification",
+  generator: "Arisan+",
 }
 
 export default function RootLayout({
@@ -33,8 +34,10 @@ html { font-family: var(--font-sans); }
         `}</style>
       </head>
       <body>
-        <Navbar />
-        <NotificationProvider>{children}</NotificationProvider>
+        <WagmiProvider>
+          <Navbar />
+          <NotificationProvider>{children}</NotificationProvider>
+        </WagmiProvider>
       </body>
     </html>
   )
