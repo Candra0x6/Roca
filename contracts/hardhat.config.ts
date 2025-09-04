@@ -17,16 +17,6 @@ const config: HardhatUserConfig = {
           },
           viaIR: true,
         },
-      },
-      {
-        version: "0.8.30",
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 200,
-          },
-          viaIR: true,
-        },
       }
     ],
   },

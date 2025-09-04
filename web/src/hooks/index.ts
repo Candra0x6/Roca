@@ -5,6 +5,9 @@ export { useBadge, useBadgeMetadata, useHasBadge } from './useBadge'
 export { useLottery, useCanDrawLottery, useLotteryStatistics } from './useLottery'
 export { useYieldManager, useYieldAPY, useTotalYield, useIsPoolStaked } from './useYieldManager'
 
+// Lottery integration hook
+export { default as useLotteryIntegration } from './useLotteryIntegration'
+
 // Pool-specific hooks
 export { usePoolId } from './usePoolId'
 export { usePoolYield } from './usePoolYield'
@@ -39,6 +42,16 @@ export type {
   UseLotteryReturn,
   UseYieldManagerReturn,
 } from '@/contracts/types'
+
+// Export lottery integration types
+export type {
+  LotteryConfig,
+  LotteryDraw,
+  LotteryParticipant,
+  LotteryStats,
+  PoolLotteryStatus,
+  UseLotteryIntegrationReturn,
+} from './useLotteryIntegration'
 
 // Export new dashboard and yield tracking types
 export type {

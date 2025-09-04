@@ -64,6 +64,9 @@ contract PoolFactory is AccessControl, ReentrancyGuard {
 
     /// @notice Address of the badge NFT contract
     address private _badgeContract;
+    
+    /// @notice Address of the lottery manager contract
+    address private _lotteryManager;
 
     /// @notice Parameters required for pool creation
     struct PoolCreationParams {
@@ -155,8 +158,9 @@ contract PoolFactory is AccessControl, ReentrancyGuard {
      * @notice Constructor sets up roles and initial state
      * @param admin Address that will have admin roles
      * @param badgeContract Address of the badge NFT contract
+     * @param lotteryManager Address of the lottery manager contract
      */
-    constructor(address admin, address badgeContract) {
+    constructor(address admin, address badgeContract, address lotteryManager) {
         if (admin == address(0)) revert UnauthorizedAccess();
         
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
@@ -165,6 +169,9 @@ contract PoolFactory is AccessControl, ReentrancyGuard {
         
         // Store badge contract address
         _badgeContract = badgeContract;
+        
+        // Store lottery manager address
+        _lotteryManager = lotteryManager;
         
         // Allow anyone to create pools by default
         _setRoleAdmin(POOL_CREATOR_ROLE, DEFAULT_ADMIN_ROLE);
@@ -197,7 +204,7 @@ contract PoolFactory is AccessControl, ReentrancyGuard {
      */
     function createPool(PoolCreationParams calldata params) 
         external 
-        nonReentrant
+        nonReentrant        
         returns (uint256 poolId, address poolAddress) 
     {
         if (_paused) revert FactoryPaused();
@@ -216,7 +223,8 @@ contract PoolFactory is AccessControl, ReentrancyGuard {
             params.duration,
             msg.sender,
             params.yieldManager,
-            _badgeContract
+            _badgeContract,
+            _lotteryManager
         );
         
         poolAddress = address(newPool);
@@ -639,11 +647,27 @@ contract PoolFactory is AccessControl, ReentrancyGuard {
     }
 
     /**
+     * @notice Get the lottery manager contract address
+     * @return lotteryManager Address of the lottery manager contract
+     */
+    function getLotteryManager() external view returns (address lotteryManager) {
+        return _lotteryManager;
+    }
+
+    /**
      * @notice Set the badge contract address (admin only)
      * @param badgeContract New badge contract address
      */
     function setBadgeContract(address badgeContract) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _badgeContract = badgeContract;
+    }
+
+    /**
+     * @notice Set the lottery manager contract address (admin only)
+     * @param lotteryManager New lottery manager contract address
+     */
+    function setLotteryManager(address lotteryManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _lotteryManager = lotteryManager;
     }
 
     // Badge Minting Functions - called by Pool contracts

@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "./interfaces/IPool.sol";
 import "./interfaces/IYieldManager.sol";
 import "./interfaces/IBadge.sol";
+import "./interfaces/ILottery.sol";
 
 /**
  * @title IPoolFactory
@@ -68,6 +69,9 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
     /// @notice Address of the badge NFT contract
     address private _badgeContract;
 
+    /// @notice Address of the lottery manager contract
+    address private _lotteryManager;
+
     /// @notice Custom errors for gas efficiency
     error PoolAlreadyInitialized();
     error PoolNotOpen();
@@ -127,6 +131,7 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
      * @param creator Address of the pool creator
      * @param yieldManager Address of yield management contract
      * @param badgeContract Address of the badge NFT contract
+     * @param lotteryManager Address of the lottery manager contract
      */
     constructor(
         string memory name,
@@ -135,7 +140,8 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
         uint256 duration,
         address creator,
         address yieldManager,
-        address badgeContract
+        address badgeContract,
+        address lotteryManager
     ) 
         validAddress(creator)
         validAddress(yieldManager)
@@ -155,6 +161,9 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
         
         // Store badge contract address (can be zero for pools without badges)
         _badgeContract = badgeContract;
+        
+        // Store lottery manager address (can be zero for pools without lottery)
+        _lotteryManager = lotteryManager;
         
         _poolInfo = PoolInfo({
             creator: creator,
@@ -208,8 +217,8 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
         // Mint EarlyJoiner badge for first 3 members, PoolCompleter badge for all
         _mintMemberBadge(msg.sender, msg.value);
         
-        // Auto-lock if pool is full
-        if (_poolInfo.currentMembers == _poolInfo.maxMembers) {
+        // Auto-lock if pool is full and still in Open status
+        if (_poolInfo.currentMembers == _poolInfo.maxMembers && _poolInfo.status == PoolStatus.Open) {
             _lockPool();
         }
     }
@@ -227,6 +236,11 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
         
         // Remove member from pool
         _removeMember(msg.sender);
+        
+        // Remove from lottery if pool was already locked (shouldn't happen but safety check)
+        if (_poolInfo.status != PoolStatus.Open && _lotteryManager != address(0)) {
+            _removeLotteryParticipant(msg.sender);
+        }
         
         // Refund the contribution
         (bool success, ) = payable(msg.sender).call{value: refundAmount}("");
@@ -249,6 +263,11 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
      * @notice Internal function to lock the pool
      */
     function _lockPool() internal {
+        // Prevent double-locking
+        if (_poolInfo.status != PoolStatus.Open) {
+            return; // Already locked or in another state
+        }
+        
         _poolInfo.status = PoolStatus.Locked;
         _poolInfo.lockedAt = block.timestamp;
         
@@ -280,8 +299,13 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
         
         emit PoolLocked(_poolInfo.lockedAt, _poolInfo.totalFunds);
         
+        // Register lottery participants if lottery manager is configured
+        _registerLotteryParticipants();
+        
         // Immediately transition to Active if locked at current time
         _poolInfo.status = PoolStatus.Active;
+
+        
     }
 
     /**
@@ -309,6 +333,9 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
     function _completePool() internal {
         uint256 poolId = _getPoolId();
         
+        // Record pool balance before yield manager withdrawal
+        uint256 balanceBefore = address(this).balance;
+        
         // Withdraw funds from yield manager with better error handling
         (bool success, bytes memory data) = _poolInfo.yieldManager.call(
             abi.encodeWithSelector(IYieldManager.withdraw.selector, poolId)
@@ -318,10 +345,22 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
             (uint256 principal, uint256 yield) = abi.decode(data, (uint256, uint256));
             _totalYield = yield;
             
+            // Verify we received the expected ETH amount
+            uint256 balanceAfter = address(this).balance;
+            uint256 expectedReceived = principal + yield;
+            uint256 actualReceived = balanceAfter - balanceBefore;
+            
             // Verify we received the expected principal amount
-            if (principal != _poolInfo.totalFunds) {
+            if (actualReceived < expectedReceived) {
                 // Log the discrepancy but don't revert - continue with completion
-                emit YieldUpdated(_totalYield, 0);
+                // However, adjust yield based on actual received amount
+                if (actualReceived >= principal) {
+                    _totalYield = actualReceived - principal;
+                } else {
+                    _totalYield = 0;
+                    // Critical issue: we didn't even get principal back
+                    emit YieldUpdated(0, 0);
+                }
             }
         } else {
             // If yield manager withdrawal fails, continue with 0 yield
@@ -366,6 +405,9 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
         uint256 principal = member.contribution;
         uint256 yieldShare = member.yieldEarned;
         uint256 totalAmount = principal + yieldShare;
+        
+        // Verify contract has sufficient balance before marking as withdrawn
+        if (address(this).balance < totalAmount) revert WithdrawalFailed();
         
         member.hasWithdrawn = true;
         
@@ -432,6 +474,9 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
                     ? (_totalYield * 10000) / _poolInfo.totalFunds 
                     : 0; // basis points
                 emit YieldUpdated(_totalYield, yieldRate);
+                
+                // Request lottery draw if conditions are met
+                _requestLotteryDrawIfEligible();
             }
             // Silently fail for view function if yield manager call fails
         }
@@ -482,7 +527,7 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
         PoolMember storage memberInfo = _memberInfo[member];
         uint256 contribution = memberInfo.contribution;
         
-        // Remove from mapping
+        // Remove from mapping 
         delete _memberInfo[member];
         _isMember[member] = false;
         
@@ -497,6 +542,133 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
         
         _poolInfo.currentMembers--;
         _poolInfo.totalFunds -= contribution;
+    }
+
+    /**
+     * @notice Register all pool members as lottery participants
+     * @dev Called when pool locks to make members eligible for lottery draws
+     */
+    function _registerLotteryParticipants() internal {
+        // Early return if lottery manager is not configured
+        if (_lotteryManager == address(0)) return;
+        
+        // Skip if no members to register
+        if (_members.length == 0) return;
+        
+        uint256 poolId = _getPoolId();
+        if (poolId == 0) return; // Skip if can't get pool ID
+        
+        // Prepare participant arrays - equal weights for MVP
+        address[] memory participants = _members;
+        uint256[] memory weights = new uint256[](_members.length);
+        
+        // Assign equal weights for MVP (could be contribution-based in future)
+        for (uint256 i = 0; i < _members.length; i++) {
+            weights[i] = 1; // Equal weight for all members
+        }
+        
+        // Use low-level call for better error handling
+        (bool success, ) = _lotteryManager.call(
+            abi.encodeWithSelector(
+                ILottery.addParticipants.selector,
+                poolId,
+                participants,
+                weights
+            )
+        );
+        
+        // Log failure but don't revert - lottery system should not block pool operations
+        if (!success) {
+            // Emit event for debugging purposes
+            emit YieldUpdated(0, 0); // Reuse existing event for logging
+        }
+    }
+
+    /**
+     * @notice Remove a member from lottery participation
+     * @param member Address of the member to remove
+     * @dev Called when a member leaves the pool (rare case as leaving after lock is restricted)
+     */
+    function _removeLotteryParticipant(address member) internal {
+        // Early return if lottery manager is not configured
+        if (_lotteryManager == address(0)) return;
+        
+        uint256 poolId = _getPoolId();
+        if (poolId == 0) return; // Skip if can't get pool ID
+        
+        // Use low-level call for better error handling
+        (bool success, ) = _lotteryManager.call(
+            abi.encodeWithSelector(
+                ILottery.removeParticipant.selector,
+                poolId,
+                member
+            )
+        );
+        
+        // Log failure but don't revert - lottery system should not block pool operations
+        if (!success) {
+            // Emit event for debugging purposes
+            emit YieldUpdated(0, 0); // Reuse existing event for logging
+        }
+    }
+
+    /**
+     * @notice Request lottery draw if pool is eligible and conditions are met
+     * @dev Called during yield updates to trigger periodic lottery draws
+     */
+    function _requestLotteryDrawIfEligible() internal {
+        // Early return if lottery manager is not configured
+        if (_lotteryManager == address(0)) return;
+        
+        // Only request draws for active pools
+        if (_poolInfo.status != PoolStatus.Active) return;
+        
+        uint256 poolId = _getPoolId();
+        if (poolId == 0) return; // Skip if can't get pool ID
+        
+        // Check if pool is eligible for lottery (has minimum participants, etc.)
+        (bool success, bytes memory data) = _lotteryManager.staticcall(
+            abi.encodeWithSelector(
+                ILottery.isPoolEligible.selector,
+                poolId
+            )
+        );
+        
+        if (!success || data.length == 0) return;
+        
+        bool isEligible = abi.decode(data, (bool));
+        if (!isEligible) return;
+        
+        // Request lottery draw with current yield
+        (bool drawSuccess, ) = _lotteryManager.call(
+            abi.encodeWithSelector(
+                ILottery.requestDraw.selector,
+                poolId,
+                _totalYield
+            )
+        );
+        
+        // Log failure but don't revert - lottery system should not block pool operations
+        if (!drawSuccess) {
+            // Emit event for debugging purposes
+            emit YieldUpdated(0, 0); // Reuse existing event for logging
+        }
+    }
+
+    /**
+     * @notice Check if lottery manager contract is valid and ready for operations
+     * @return isValid True if lottery manager contract is available and functional
+     */
+    function _isLotteryManagerValid() internal view returns (bool isValid) {
+        if (_lotteryManager == address(0)) return false;
+        
+        // Check if lottery manager address has code (is a contract)
+        address lotteryAddr = _lotteryManager;
+        uint256 size;
+        assembly {
+            size := extcodesize(lotteryAddr)
+        }
+        return size > 0;
     }
 
     /**
@@ -624,6 +796,18 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
     }
 
     /**
+     * @notice Manually trigger lottery draw for this pool (admin only)
+     * @dev Allows admin to manually request lottery draw for testing or emergency purposes
+     */
+    function triggerLotteryDraw() external onlyRole(EMERGENCY_ADMIN_ROLE) {
+        if (_poolInfo.status != PoolStatus.Active) {
+            revert InvalidState(_poolInfo.status, PoolStatus.Active);
+        }
+        
+        _requestLotteryDrawIfEligible();
+    }
+
+    /**
      * @notice Emergency pause function
      * @dev Only emergency admin can pause the contract
      */
@@ -737,6 +921,66 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
      */
     function getBadgeContract() external view returns (address badgeContract) {
         return _badgeContract;
+    }
+
+    /**
+     * @notice Get the lottery manager contract address
+     * @return lotteryManager Address of the lottery manager contract
+     */
+    function getLotteryManager() external view returns (address lotteryManager) {
+        return _lotteryManager;
+    }
+
+    /**
+     * @notice Get contract balance and withdrawal info for debugging
+     * @return contractBalance Current ETH balance of the pool contract
+     * @return totalWithdrawable Total amount that should be withdrawable by all members
+     * @return hasAllFunds Whether contract has sufficient funds for all withdrawals
+     */
+    function getWithdrawalDebugInfo() external view returns (
+        uint256 contractBalance,
+        uint256 totalWithdrawable,
+        bool hasAllFunds
+    ) {
+        contractBalance = address(this).balance;
+        
+        // Calculate total withdrawable amount
+        totalWithdrawable = 0;
+        for (uint256 i = 0; i < _members.length; i++) {
+            address member = _members[i];
+            if (!_memberInfo[member].hasWithdrawn) {
+                totalWithdrawable += _memberInfo[member].contribution + _memberInfo[member].yieldEarned;
+            }
+        }
+        
+        hasAllFunds = contractBalance >= totalWithdrawable;
+    }
+
+    /**
+     * @notice Get detailed member withdrawal info
+     * @param member Address of the member
+     * @return canWithdraw Whether the member can withdraw
+     * @return principal Member's principal contribution
+     * @return yieldShare Member's yield share
+     * @return totalAmount Total withdrawal amount
+     * @return contractHasFunds Whether contract has sufficient funds for this withdrawal
+     */
+    function getMemberWithdrawalInfo(address member) external view returns (
+        bool canWithdraw,
+        uint256 principal,
+        uint256 yieldShare,
+        uint256 totalAmount,
+        bool contractHasFunds
+    ) {
+        if (!_isMember[member] || _memberInfo[member].hasWithdrawn || _poolInfo.status != PoolStatus.Completed) {
+            return (false, 0, 0, 0, false);
+        }
+        
+        principal = _memberInfo[member].contribution;
+        yieldShare = _memberInfo[member].yieldEarned;
+        totalAmount = principal + yieldShare;
+        contractHasFunds = address(this).balance >= totalAmount;
+        canWithdraw = contractHasFunds;
     }
 
     /**

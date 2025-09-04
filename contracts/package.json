@@ -8,12 +8,33 @@
     "test": "hardhat test",
     "test:coverage": "hardhat coverage",
     "test:gas": "REPORT_GAS=true hardhat test",
+    "test:all": "./test-all.sh",
+    
     "deploy:localhost": "hardhat ignition deploy ignition/modules/Lock.ts --network localhost",
     "deploy:sepolia": "hardhat ignition deploy ignition/modules/Lock.ts --network sepolia --verify",
     "deploy:mainnet": "hardhat ignition deploy ignition/modules/Lock.ts --network mainnet --verify",
+    
+    "deploy:all": "hardhat run scripts/deploy-all-contracts.ts --network localhost",
+    "deploy:all:sepolia": "hardhat run scripts/deploy-all-contracts.ts --network sepolia",
+    "deploy:all:mainnet": "hardhat run scripts/deploy-production.ts --network mainnet",
+    
+    "deploy:dev": "hardhat run scripts/deploy-dev.ts --network localhost",
+    "deploy:prod": "hardhat run scripts/deploy-production.ts",
+    "deploy:badge": "hardhat run scripts/deploy-badge-integration.ts --network localhost",
+    
+    "deploy:single": "hardhat run scripts/deploy-single.ts --network localhost",
+    "deploy:single:sepolia": "hardhat run scripts/deploy-single.ts --network sepolia",
+    
+    "deployment:list": "npx ts-node scripts/deployment-utils.ts list",
+    "deployment:verify": "npx ts-node scripts/deployment-utils.ts verify",
+    "deployment:env": "npx ts-node scripts/deployment-utils.ts env",
+    
     "verify:sepolia": "hardhat verify --network sepolia",
     "verify:mainnet": "hardhat verify --network mainnet",
+    
     "node": "hardhat node",
+    "node:fork": "hardhat node --fork https://eth-mainnet.alchemyapi.io/v2/$ALCHEMY_API_KEY",
+    
     "clean": "hardhat clean",
     "typechain": "hardhat typechain"
   },

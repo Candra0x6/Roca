@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import DotGridShader from "@/components/DotGridShader"
 import AnimatedHeading from "@/components/animated-heading"
 import RevealOnView from "@/components/reveal-on-view"
+import LotteryIntegration from "@/components/LotteryIntegration"
 import { usePool, usePoolId, usePoolYield, useTimeSimulation, useWithdrawalInfo } from "@/hooks"
 import { useAccount } from "wagmi"
 import { PoolState } from "@/contracts/types"
@@ -979,7 +980,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                       <div className="text-xs text-white/50 space-y-1">
                         <p>• Pool Contract: {params.id}</p>
                         <p>• Yield Manager: 0xe451980132e65465d0a498c53f0b5227326dd73f</p>
-                        <p className="pt-2 text-yellow-400">💡 If yield manager has funds but pool doesn't, update yield to transfer funds back</p>
+                        <p className="pt-2 text-yellow-400">💡 If yield manager has funds but pool doesn&lsquo;t, update yield to transfer funds back</p>
                       </div>
                     </div>
                   </div>
@@ -1657,6 +1658,21 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                       </div>
                     </div>
                   </div>
+                </RevealOnView>
+              )}
+
+              {/* Lottery Integration Component */}
+              {poolId && poolId > 0n && (
+                <RevealOnView delay={0.5}>
+                  <LotteryIntegration
+                    poolAddress={params.id as `0x${string}`}
+                    poolId={poolId}
+                    poolName={poolDetails.name}
+                    isAdmin={account === poolDetails.creator} // For demo, creator has admin rights
+                    isCreator={account === poolDetails.creator}
+                    currentYield={currentYield}
+                    totalContributions={poolDetails.totalContributions}
+                  />
                 </RevealOnView>
               )}
             </div>
