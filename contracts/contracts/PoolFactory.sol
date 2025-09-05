@@ -66,7 +66,7 @@ contract PoolFactory is AccessControl, ReentrancyGuard {
     address private _badgeContract;
     
     /// @notice Address of the lottery manager contract
-    address private _lotteryManager;
+    // address private _lotteryManager;
 
     /// @notice Parameters required for pool creation
     struct PoolCreationParams {
@@ -171,7 +171,8 @@ contract PoolFactory is AccessControl, ReentrancyGuard {
         _badgeContract = badgeContract;
         
         // Store lottery manager address
-        _lotteryManager = lotteryManager;
+        // Disabled for MVP - re-enabled in future versions
+        // _lotteryManager = lotteryManager;
         
         // Allow anyone to create pools by default
         _setRoleAdmin(POOL_CREATOR_ROLE, DEFAULT_ADMIN_ROLE);
@@ -215,6 +216,9 @@ contract PoolFactory is AccessControl, ReentrancyGuard {
         // Increment pool ID counter
         poolId = ++_poolIdCounter;
         
+        // Fake Lottery Manager data
+        address lotteryManager = address(0);
+
         // Deploy new Pool contract
         Pool newPool = new Pool(
             params.name,
@@ -224,7 +228,7 @@ contract PoolFactory is AccessControl, ReentrancyGuard {
             msg.sender,
             params.yieldManager,
             _badgeContract,
-            _lotteryManager
+            lotteryManager
         );
         
         poolAddress = address(newPool);
@@ -245,6 +249,23 @@ contract PoolFactory is AccessControl, ReentrancyGuard {
         // Update statistics
         poolStatistics.totalPools++;
         poolStatistics.activePools++;
+
+        // Disabled for MVP - re-enabled in future versions
+        // Grant POOL_ROLE to the new pool for lottery integration
+        // if (_lotteryManager != address(0)) {
+        //     bytes32 poolRole = keccak256("POOL_ROLE");
+        //     bytes memory grantRoleCalldata = abi.encodeWithSignature(
+        //         "grantRole(bytes32,address)",
+        //         poolRole,
+        //         poolAddress
+        //     );
+            
+        //     (bool success, ) = _lotteryManager.call(grantRoleCalldata);
+        //     if (!success) {
+        //         // Role granting failed - don't revert pool creation
+        //         // This allows pool creation to continue even if lottery integration fails
+        //     }
+        // }
         
         // Mint PoolCreator badge after pool is registered
         if (_badgeContract != address(0)) {
@@ -648,11 +669,12 @@ contract PoolFactory is AccessControl, ReentrancyGuard {
 
     /**
      * @notice Get the lottery manager contract address
+     * Disabled for MVP - re-enabled in future versions
      * @return lotteryManager Address of the lottery manager contract
      */
-    function getLotteryManager() external view returns (address lotteryManager) {
-        return _lotteryManager;
-    }
+    // function getLotteryManager() external view returns (address lotteryManager) {
+    //     return _lotteryManager;
+    // }
 
     /**
      * @notice Set the badge contract address (admin only)
@@ -664,11 +686,12 @@ contract PoolFactory is AccessControl, ReentrancyGuard {
 
     /**
      * @notice Set the lottery manager contract address (admin only)
+     * Disabled for MVP - re-enabled in future versions
      * @param lotteryManager New lottery manager contract address
      */
-    function setLotteryManager(address lotteryManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _lotteryManager = lotteryManager;
-    }
+    // function setLotteryManager(address lotteryManager) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    //     _lotteryManager = lotteryManager;
+    // }
 
     // Badge Minting Functions - called by Pool contracts
 

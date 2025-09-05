@@ -4,10 +4,10 @@ pragma solidity 0.8.28;
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
+import "hardhat/console.sol";
 import "./interfaces/IPool.sol";
 import "./interfaces/IYieldManager.sol";
 import "./interfaces/IBadge.sol";
-import "./interfaces/ILottery.sol";
 
 /**
  * @title IPoolFactory
@@ -238,9 +238,10 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
         _removeMember(msg.sender);
         
         // Remove from lottery if pool was already locked (shouldn't happen but safety check)
-        if (_poolInfo.status != PoolStatus.Open && _lotteryManager != address(0)) {
-            _removeLotteryParticipant(msg.sender);
-        }
+        // Disabled for MVP - re-enabled in future versions
+        // if (_poolInfo.status != PoolStatus.Open && _lotteryManager != address(0)) {
+        //     _removeLotteryParticipant(msg.sender);
+        // }
         
         // Refund the contribution
         (bool success, ) = payable(msg.sender).call{value: refundAmount}("");
@@ -299,8 +300,8 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
         
         emit PoolLocked(_poolInfo.lockedAt, _poolInfo.totalFunds);
         
-        // Register lottery participants if lottery manager is configured
-        _registerLotteryParticipants();
+        // Register lottery participants if lottery manager is configured+       // Disabled for MVP - re-enabled in future versions
+        // _registerLotteryParticipants();
         
         // Immediately transition to Active if locked at current time
         _poolInfo.status = PoolStatus.Active;
@@ -476,7 +477,8 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
                 emit YieldUpdated(_totalYield, yieldRate);
                 
                 // Request lottery draw if conditions are met
-                _requestLotteryDrawIfEligible();
+                // Disabled for MVP - re-enabled in future versions
+                // _requestLotteryDrawIfEligible();
             }
             // Silently fail for view function if yield manager call fails
         }
@@ -548,112 +550,142 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
      * @notice Register all pool members as lottery participants
      * @dev Called when pool locks to make members eligible for lottery draws
      */
-    function _registerLotteryParticipants() internal {
-        // Early return if lottery manager is not configured
-        if (_lotteryManager == address(0)) return;
+    // Disabled for MVP - re-enabled in future versions
+    // function _registerLotteryParticipants() internal {
+    //     // Early return if lottery manager is not configured
+    //     if (_lotteryManager == address(0)) {
+    //         console.log("Lottery manager not configured - skipping registration");
+    //         return; // Silent return instead of revert
+    //     }
         
-        // Skip if no members to register
-        if (_members.length == 0) return;
+    //     console.log("Registering lottery participants for pool");
         
-        uint256 poolId = _getPoolId();
-        if (poolId == 0) return; // Skip if can't get pool ID
+    //     // Skip if no members to register
+    //     if (_members.length == 0) {
+    //         console.log("No members to register for lottery");
+    //         return; // Silent return instead of revert
+    //     }
         
-        // Prepare participant arrays - equal weights for MVP
-        address[] memory participants = _members;
-        uint256[] memory weights = new uint256[](_members.length);
+    //     uint256 poolId = _getPoolId();
+    //     if (poolId == 0) {
+    //         console.log("Cannot get pool ID for lottery registration");
+    //         return; // Silent return instead of revert
+    //     }
         
-        // Assign equal weights for MVP (could be contribution-based in future)
-        for (uint256 i = 0; i < _members.length; i++) {
-            weights[i] = 1; // Equal weight for all members
-        }
+    //     // Check if pool will be eligible for lottery based on current member count
+    //     // Get the lottery config to check minimum pool size requirement
+    //     try ILottery(_lotteryManager).getLotteryConfig() returns (ILottery.LotteryConfig memory config) {
+    //         if (_members.length < config.minPoolSize) {
+    //             console.log("Pool has insufficient members for lottery eligibility - skipping registration");
+    //             return; // Silent return - pool can still function without lottery
+    //         }
+    //     } catch {
+    //         console.log("Failed to check lottery config - skipping registration");
+    //         return; // Silent return on any config check failure
+    //     }
         
-        // Use low-level call for better error handling
-        (bool success, ) = _lotteryManager.call(
-            abi.encodeWithSelector(
-                ILottery.addParticipants.selector,
-                poolId,
-                participants,
-                weights
-            )
-        );
+    //     // Prepare participant arrays - equal weights for MVP
+    //     address[] memory participants = _members;
+    //     uint256[] memory weights = new uint256[](_members.length);
         
-        // Log failure but don't revert - lottery system should not block pool operations
-        if (!success) {
-            // Emit event for debugging purposes
-            emit YieldUpdated(0, 0); // Reuse existing event for logging
-        }
-    }
+    //     // Assign equal weights for MVP (could be contribution-based in future)
+    //     for (uint256 i = 0; i < _members.length; i++) {
+    //         weights[i] = 1; // Equal weight for all members
+    //     }
+        
+    //     // Use low-level call for better error handling
+    //     console.log("Calling lottery manager to add participants");
+    //     (bool success, ) = _lotteryManager.call(
+    //         abi.encodeWithSelector(
+    //             ILottery.addParticipants.selector,
+    //             poolId,
+    //             participants,
+    //             weights
+    //         )
+    //     );
+        
+    //     // Log failure but don't revert - lottery system should not block pool operations
+    //     if (!success) {
+    //         console.log("Failed to register lottery participants");
+    //         // Emit event for debugging purposes
+    //         emit YieldUpdated(0, 0); // Reuse existing event for logging
+    //     }
+    // }
 
     /**
      * @notice Remove a member from lottery participation
      * @param member Address of the member to remove
      * @dev Called when a member leaves the pool (rare case as leaving after lock is restricted)
+     * @notice Disabled for MVP - re-enabled in future versions
      */
-    function _removeLotteryParticipant(address member) internal {
-        // Early return if lottery manager is not configured
-        if (_lotteryManager == address(0)) return;
+    // function _removeLotteryParticipant(address member) internal {
+    //     // Early return if lottery manager is not configured
+    //     if (_lotteryManager == address(0)) return;
         
-        uint256 poolId = _getPoolId();
-        if (poolId == 0) return; // Skip if can't get pool ID
+    //     uint256 poolId = _getPoolId();
+    //     if (poolId == 0) return; // Skip if can't get pool ID
         
-        // Use low-level call for better error handling
-        (bool success, ) = _lotteryManager.call(
-            abi.encodeWithSelector(
-                ILottery.removeParticipant.selector,
-                poolId,
-                member
-            )
-        );
+    //     // Use low-level call for better error handling
+    //     (bool success, ) = _lotteryManager.call(
+    //         abi.encodeWithSelector(
+    //             ILottery.removeParticipant.selector,
+    //             poolId,
+    //             member
+    //         )
+    //     );
         
-        // Log failure but don't revert - lottery system should not block pool operations
-        if (!success) {
-            // Emit event for debugging purposes
-            emit YieldUpdated(0, 0); // Reuse existing event for logging
-        }
-    }
+    //     // Log failure but don't revert - lottery system should not block pool operations
+    //     if (!success) {
+    //         // Emit event for debugging purposes
+    //         emit YieldUpdated(0, 0); // Reuse existing event for logging
+    //     }
+    // }
 
     /**
      * @notice Request lottery draw if pool is eligible and conditions are met
      * @dev Called during yield updates to trigger periodic lottery draws
+     *     Disabled for MVP - re-enabled in future versions
      */
-    function _requestLotteryDrawIfEligible() internal {
-        // Early return if lottery manager is not configured
-        if (_lotteryManager == address(0)) return;
+    // function _requestLotteryDrawIfEligible() internal {
+    //     // Early return if lottery manager is not configured
+    //     if (_lotteryManager == address(0)) return;
         
-        // Only request draws for active pools
-        if (_poolInfo.status != PoolStatus.Active) return;
+    //     // Only request draws for active pools
+    //     if (_poolInfo.status != PoolStatus.Active) return;
         
-        uint256 poolId = _getPoolId();
-        if (poolId == 0) return; // Skip if can't get pool ID
+    //     uint256 poolId = _getPoolId();
+    //     if (poolId == 0) return; // Skip if can't get pool ID
         
-        // Check if pool is eligible for lottery (has minimum participants, etc.)
-        (bool success, bytes memory data) = _lotteryManager.staticcall(
-            abi.encodeWithSelector(
-                ILottery.isPoolEligible.selector,
-                poolId
-            )
-        );
+    //     // Check if pool is eligible for lottery (has minimum participants, etc.)
+
+    //     // Disabled for MVP - re-enabled in future versions
+    //     // (bool success, bytes memory data) = _lotteryManager.staticcall(
+    //     //     abi.encodeWithSelector(
+    //     //         ILottery.isPoolEligible.selector,
+    //     //         poolId
+    //     //     )
+    //     // );
         
-        if (!success || data.length == 0) return;
+    //     // if (!success || data.length == 0) return;
         
-        bool isEligible = abi.decode(data, (bool));
-        if (!isEligible) return;
+    //     // bool isEligible = abi.decode(data, (bool));
+    //     // if (!isEligible) return;
         
-        // Request lottery draw with current yield
-        (bool drawSuccess, ) = _lotteryManager.call(
-            abi.encodeWithSelector(
-                ILottery.requestDraw.selector,
-                poolId,
-                _totalYield
-            )
-        );
+    //     // Request lottery draw with current yield
+    //     // (bool drawSuccess, ) = _lotteryManager.call(
+    //     //     abi.encodeWithSelector(
+    //     //         ILottery.requestDraw.selector,
+    //     //         poolId,
+    //     //         _totalYield
+    //     //     )
+    //     // );
         
-        // Log failure but don't revert - lottery system should not block pool operations
-        if (!drawSuccess) {
-            // Emit event for debugging purposes
-            emit YieldUpdated(0, 0); // Reuse existing event for logging
-        }
-    }
+    //     // Log failure but don't revert - lottery system should not block pool operations
+    //     if (!drawSuccess) {
+    //         // Emit event for debugging purposes
+    //         emit YieldUpdated(0, 0); // Reuse existing event for logging
+    //     }
+    // }
 
     /**
      * @notice Check if lottery manager contract is valid and ready for operations
@@ -798,14 +830,15 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
     /**
      * @notice Manually trigger lottery draw for this pool (admin only)
      * @dev Allows admin to manually request lottery draw for testing or emergency purposes
+     *    Disabled for MVP - re-enabled in future versions
      */
-    function triggerLotteryDraw() external onlyRole(EMERGENCY_ADMIN_ROLE) {
-        if (_poolInfo.status != PoolStatus.Active) {
-            revert InvalidState(_poolInfo.status, PoolStatus.Active);
-        }
+    // function triggerLotteryDraw() external onlyRole(EMERGENCY_ADMIN_ROLE) {
+    //     if (_poolInfo.status != PoolStatus.Active) {
+    //         revert InvalidState(_poolInfo.status, PoolStatus.Active);
+    //     }
         
-        _requestLotteryDrawIfEligible();
-    }
+    //     _requestLotteryDrawIfEligible();
+    // }
 
     /**
      * @notice Emergency pause function
