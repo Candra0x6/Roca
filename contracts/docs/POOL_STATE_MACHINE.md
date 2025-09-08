@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Arisan+ pool lifecycle follows a deterministic state machine with four primary states. This document defines the complete state transition rules, validation conditions, and implementation requirements.
+The Roca pool lifecycle follows a deterministic state machine with four primary states. This document defines the complete state transition rules, validation conditions, and implementation requirements.
 
 ## State Machine Diagram
 
@@ -408,4 +408,4 @@ function getPoolProgress() external view returns (
 3. Emergency flows: Any → EMERGENCY → Recovery
 4. Pause/resume flows: Any → PAUSED → Previous
 
-This state machine design ensures robust, secure, and efficient pool lifecycle management for the Arisan+ platform.
+This state machine design ensures robust, secure, and efficient pool lifecycle management for the Roca platform.

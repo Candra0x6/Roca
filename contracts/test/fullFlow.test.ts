@@ -1,6 +1,6 @@
 /**
  * @title Full Flow Integration Test
- * @dev Comprehensive integration test for the entire Arisan+ smart contract ecosystem
+ * @dev Comprehensive integration test for the entire Roca smart contract ecosystem
  * 
  * This test suite covers:
  * 1. Complete Pool Lifecycle: create → join → lock → complete → withdraw
@@ -19,7 +19,7 @@
  * - Includes detailed console logging for debugging
  * - Tests multiple user roles and edge cases
  * 
- * @author Arisan+ Team
+ * @author Roca Team
  */
 
 import "@nomicfoundation/hardhat-toolbox";

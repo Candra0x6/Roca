@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 /**
  * @title Lock
- * @author Arisan+ Team
+ * @author Roca Team
  * @notice A simple time-locked contract for testing Hardhat setup
  * @dev This contract locks funds until a specified unlock time
  */

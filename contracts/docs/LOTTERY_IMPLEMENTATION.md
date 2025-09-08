@@ -2,7 +2,7 @@
 
 ## Overview
 
-The LotteryManager contract implements a decentralized lottery system for the Arisan+ platform, providing weekly bonus draws for pool participants with pseudo-randomness for MVP deployment.
+The LotteryManager contract implements a decentralized lottery system for the Roca platform, providing weekly bonus draws for pool participants with pseudo-randomness for MVP deployment.
 
 ## Key Features
 
@@ -231,4 +231,4 @@ uint256 randomValue = uint256(randomSeed) % totalWeight;
 
 ## Conclusion
 
-The LotteryManager contract successfully implements task SC-008, providing a robust, secure, and gas-efficient lottery system for the Arisan+ platform. The implementation uses pseudo-randomness suitable for MVP deployment while maintaining fairness through weighted selection and comprehensive security measures.
+The LotteryManager contract successfully implements task SC-008, providing a robust, secure, and gas-efficient lottery system for the Roca platform. The implementation uses pseudo-randomness suitable for MVP deployment while maintaining fairness through weighted selection and comprehensive security measures.

@@ -1,7 +1,7 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  console.log("Starting deployment of Arisan+ contracts...");
+  console.log("Starting deployment of Roca contracts...");
 
   // Get the deployer account
   const [deployer] = await ethers.getSigners();
@@ -21,7 +21,7 @@ async function main() {
   const RewardNFT = await ethers.getContractFactory("RewardNFT");
   const rewardNFT = await RewardNFT.deploy(
     deployer.address, // admin
-    "Arisan+ Achievement Badges", // name
+    "Roca Achievement Badges", // name
     "ARISAN" // symbol
   );
   await rewardNFT.waitForDeployment();

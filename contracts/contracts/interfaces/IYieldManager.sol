@@ -3,8 +3,8 @@ pragma solidity 0.8.28;
 
 /**
  * @title IYieldManager
- * @author Arisan+ Team
- * @notice Interface for Arisan+ yield management system
+ * @author Roca Team
+ * @notice Interface for Roca yield management system
  * @dev Manages yield generation strategies for pool funds
  */
 interface IYieldManager {

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🧪 Starting Arisan+ Smart Contract Test Suite"
+echo "🧪 Starting Roca Smart Contract Test Suite"
 echo "=============================================="
 
 # Phase 1: Foundation & Interfaces
@@ -85,4 +85,4 @@ echo "npx hardhat test --verbose"
 npx hardhat test --verbose
 if [ $? -ne 0 ]; then echo "❌ Complete system test failed"; exit 1; fi
 
-echo "✅ All tests passed! Arisan+ smart contracts are ready! 🎉"
+echo "✅ All tests passed! Roca smart contracts are ready! 🎉"

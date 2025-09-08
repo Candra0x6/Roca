@@ -1,4 +1,4 @@
-# Arisan+ Contracts — User Interaction Guide
+# Roca Contracts — User Interaction Guide
 
 This document explains how end users (creators, members, admins) and integrators (frontend, scripts) interact with the smart contracts in this repository. It lists the primary user-facing functions for each contract and gives short examples for calls (ethers.js / Hardhat).
 

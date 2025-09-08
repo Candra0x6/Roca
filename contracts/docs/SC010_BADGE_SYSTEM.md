@@ -2,7 +2,7 @@
 
 ## Overview
 
-SC-010 implements a comprehensive achievement badge system for the Arisan+ platform using ERC-721 non-fungible tokens (NFTs). The system gamifies user participation by awarding digital badges for various milestones and achievements.
+SC-010 implements a comprehensive achievement badge system for the Roca platform using ERC-721 non-fungible tokens (NFTs). The system gamifies user participation by awarding digital badges for various milestones and achievements.
 
 ## Architecture
 
@@ -245,7 +245,7 @@ rewardNFT.batchMintBadges(userAddress, types, pools, values);
 // Deploy with admin address
 const rewardNFT = await RewardNFTFactory.deploy(
     adminAddress,
-    "Arisan+ Badges",
+    "Roca Badges",
     "BADGE"
 );
 

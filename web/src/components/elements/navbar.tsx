@@ -6,13 +6,14 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Home, Users, Plus, UserPlus, Trophy, TrendingUp, Settings, Wallet, Menu, X } from "lucide-react"
+import { Home, Users, Plus, UserPlus, Trophy, TrendingUp, Settings, Wallet, Menu, X, LayoutDashboard, SearchIcon } from "lucide-react"
 import WalletButton from '../wallet-button'
+import { useWalletConnection } from '@/hooks'
 function Navbar() {
     const pathname = usePathname()
     const [isConnected, setIsConnected] = useState(false)
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-
+    const { isConnected: walletConnected } = useWalletConnection()
     useEffect(() => {
         // Check wallet connection status
         const checkConnection = () => {
@@ -26,11 +27,8 @@ function Navbar() {
     }, [])
 
     const navigationItems = [
-        { href: "/", label: "Dashboard", icon: Home },
-        { href: "/bonus-draw", label: "Bonus Draw", icon: Trophy },
-        { href: "/yield-rewards", label: "Rewards", icon: TrendingUp },
-        { href: "/gamification", label: "Achievements", icon: Trophy },
-        { href: "/settings", label: "Settings", icon: Settings },
+        { href: "/", label: walletConnected ? "Dashboard" : "Home", icon: walletConnected ? LayoutDashboard : Home },
+        { href: "/join-pool", label: "Find Pool", icon: SearchIcon },
     ]
 
     const isActive = (href: string) => {
@@ -46,6 +44,8 @@ function Navbar() {
 
                 {/* Navigation Links */}
                 <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-x-5">
+
                     {navigationItems.map((item) => {
                         const Icon = item.icon
                         const active = isActive(item.href)
@@ -55,7 +55,7 @@ function Navbar() {
                                 key={item.href}
                                 href={item.href}
                                 className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-300 ${active
-                                        ? "bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-400 border border-cyan-500/30"
+                                        ? "bg-primary text-white border border-cyan-500/30"
                                         : "text-neutral-400 hover:text-white hover:bg-neutral-800/50"
                                     }`}
                             >
@@ -64,6 +64,7 @@ function Navbar() {
                             </Link>
                         )
                     })}
+                    </div>
                     <WalletButton />
                 </div>
             </div>

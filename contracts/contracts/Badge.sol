@@ -12,8 +12,8 @@ import "./interfaces/IBadge.sol";
 
 /**
  * @title Badge
- * @author Arisan+ Team
- * @notice Implementation of Arisan+ achievement badge NFT system
+ * @author Roca Team
+ * @notice Implementation of Roca achievement badge NFT system
  * @dev Extends ERC721 for gamification and user recognition with comprehensive badge management
  */
 contract Badge is IBadge, ERC721, ERC721URIStorage, AccessControl, ReentrancyGuard, Pausable {
@@ -81,7 +81,7 @@ contract Badge is IBadge, ERC721, ERC721URIStorage, AccessControl, ReentrancyGua
     constructor(
         address admin,
         string memory baseURI
-    ) ERC721("Arisan+ Achievement Badges", "ARISAN+") {
+    ) ERC721("Roca Achievement Badges", "ARISAN+") {
         if (admin == address(0)) revert ZeroAddress();
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);

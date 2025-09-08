@@ -8,12 +8,12 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
  * @title YieldManager
- * @author Arisan+ Team
+ * @author Roca Team
  * @notice Dummy YieldManager implementation for MVP
  * @dev Simulates 5% APY growth without real DeFi integration
  * 
  * This contract provides a simplified yield management system for the MVP version
- * of the Arisan+ platform. It simulates yield generation at a fixed 5% APY rate
+ * of the Roca platform. It simulates yield generation at a fixed 5% APY rate
  * without connecting to actual DeFi protocols.
  * 
  * Key features:

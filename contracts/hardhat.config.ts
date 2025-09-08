@@ -43,12 +43,31 @@ const config: HardhatUserConfig = {
       chainId: 1,
       gasPrice: "auto",
     },
+    somnia: {
+      url: process.env.SOMNIA_RPC_URL || "https://testnet.somnia.network",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      chainId: 50312, // Somnia testnet chain ID
+    },
   },
   etherscan: {
     apiKey: {
       mainnet: process.env.ETHERSCAN_API_KEY || "",
       sepolia: process.env.ETHERSCAN_API_KEY || "",
+      somnia: process.env.SOMNIA_API_KEY || "dummy-api-key", // Somnia explorer API key
     },
+    customChains: [
+      {
+        network: "somnia",
+        chainId: 50312,
+        urls: {
+          apiURL: process.env.SOMNIA_EXPLORER_API_URL || "https://shannon-explorer.somnia.network/api",
+          browserURL: process.env.SOMNIA_EXPLORER_URL || "https://shannon-explorer.somnia.network"
+        }
+      }
+    ]
+  },
+  sourcify: {
+    enabled: false
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,

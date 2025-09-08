@@ -1,8 +1,8 @@
-# Arisan+ Smart Contract Testing Documentation
+# Roca Smart Contract Testing Documentation
 
 ## Overview
 
-This document provides comprehensive documentation of the unit test coverage for the Arisan+ smart contract ecosystem. The testing suite ensures all critical functionalities work correctly and provides confidence in the system's reliability.
+This document provides comprehensive documentation of the unit test coverage for the Roca smart contract ecosystem. The testing suite ensures all critical functionalities work correctly and provides confidence in the system's reliability.
 
 ## Test File Location
 - **Main Test File**: `test/fullFlow.test.ts`
@@ -312,4 +312,4 @@ This comprehensive testing suite provides:
 4. **Real-world Simulation**: Actual ETH values and time progression
 5. **Debugging Support**: Detailed logging and error reporting
 
-The test suite ensures the Arisan+ smart contract ecosystem is robust, secure, and ready for production deployment while maintaining high code quality and reliability standards.
+The test suite ensures the Roca smart contract ecosystem is robust, secure, and ready for production deployment while maintaining high code quality and reliability standards.

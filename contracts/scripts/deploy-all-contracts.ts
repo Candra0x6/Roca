@@ -10,7 +10,7 @@ interface DeployedContracts {
 }
 
 async function main() {
-  console.log("🚀 Starting full deployment of Arisan+ contracts...");
+  console.log("🚀 Starting full deployment of Roca contracts...");
   console.log("=".repeat(60));
 
   // Get the deployer account
@@ -54,7 +54,7 @@ async function main() {
     const RewardNFT = await ethers.getContractFactory("RewardNFT");
     const rewardNFT = await RewardNFT.deploy(
       deployer.address, // admin
-      "Arisan+ Achievement Badges", // name
+      "Roca Achievement Badges", // name
       "ARISAN" // symbol
     );
     await rewardNFT.waitForDeployment();

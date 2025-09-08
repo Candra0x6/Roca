@@ -5,7 +5,7 @@ import "./interfaces/IYieldManager.sol";
 
 /**
  * @title MockYieldManager
- * @author Arisan+ Team
+ * @author Roca Team
  * @notice Mock implementation of YieldManager for testing purposes
  * @dev Simulates yield generation without actual DeFi integration
  */

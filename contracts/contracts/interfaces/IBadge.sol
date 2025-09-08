@@ -5,8 +5,8 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /**
  * @title IBadge
- * @author Arisan+ Team
- * @notice Interface for Arisan+ achievement badge NFT system
+ * @author Roca Team
+ * @notice Interface for Roca achievement badge NFT system
  * @dev Extends ERC721 for gamification and user recognition
  */
 interface IBadge is IERC721 {

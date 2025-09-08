@@ -1,6 +1,6 @@
-# Arisan+ Smart Contracts
+# Roca Smart Contracts
 
-This directory contains the smart contracts for the Arisan+ decentralized social saving platform.
+This directory contains the smart contracts for the Roca decentralized social saving platform.
 
 ## Project Structure
 
@@ -182,7 +182,7 @@ REPORT_GAS=true
 
 ## Next Steps
 
-This setup is ready for implementing the Arisan+ protocol contracts:
+This setup is ready for implementing the Roca protocol contracts:
 - PoolFactory.sol
 - Pool.sol
 - YieldManager.sol

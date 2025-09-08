@@ -194,7 +194,7 @@ export default function WalletConnect({ onConnectionChange }: WalletConnectProps
       </div>
 
       <p className="text-xs text-white/50 text-center">
-        Connect your wallet to interact with Arisan+ pools
+        Connect your wallet to interact with Roca pools
       </p>
     </div>
   )

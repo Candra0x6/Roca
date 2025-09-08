@@ -5,8 +5,9 @@ export { useBadge, useBadgeMetadata, useHasBadge } from './useBadge'
 export { useLottery, useCanDrawLottery, useLotteryStatistics } from './useLottery'
 export { useYieldManager, useYieldAPY, useTotalYield, useIsPoolStaked } from './useYieldManager'
 
-// Lottery integration hook
+// Lottery integration hooks
 export { default as useLotteryIntegration } from './useLotteryIntegration'
+export { useLotteryParticipants, usePoolLotteryEligibility } from './useLotteryParticipants'
 
 // Pool-specific hooks
 export { usePoolId } from './usePoolId'

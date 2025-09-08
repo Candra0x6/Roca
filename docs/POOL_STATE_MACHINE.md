@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document defines the state machine for the Arisan+ pool lifecycle, detailing the valid states, transitions, and rules governing pool behavior throughout its lifetime.
+This document defines the state machine for the Roca pool lifecycle, detailing the valid states, transitions, and rules governing pool behavior throughout its lifetime.
 
 ## State Diagram
 
@@ -196,4 +196,4 @@ Each state transition should be tested with:
 
 ---
 
-*This state machine design ensures robust pool lifecycle management while maintaining security and user experience throughout the Arisan+ platform.*
+*This state machine design ensures robust pool lifecycle management while maintaining security and user experience throughout the Roca platform.*

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This implementation provides comprehensive TypeScript bindings for all smart contracts in the Arisan+ platform, enabling type-safe interactions with wagmi v2 and viem v2.
+This implementation provides comprehensive TypeScript bindings for all smart contracts in the Roca platform, enabling type-safe interactions with wagmi v2 and viem v2.
 
 ## Features Implemented
 

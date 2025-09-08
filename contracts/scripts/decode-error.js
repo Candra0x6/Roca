@@ -2,7 +2,7 @@ const { ethers } = require("hardhat");
 
 async function main() {
   // The error data from the failed transaction
-  const errorData = "0x27fcd9d1";
+  const errorData = "0xe2517d3f00000000000000000000000015d34aaf54267db7d7c367839aaf71a00a2c6a65b8179c2726c8d8961ef054875ab3f4c1c3d34e1cb429c3d5e0bc97958e4cab9d";
   
   try {
     // Get the PoolFactory contract

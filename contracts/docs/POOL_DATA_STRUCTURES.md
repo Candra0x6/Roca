@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the implementation of Pool data structures for the Arisan+ decentralized social saving platform, completed as part of task SC-003.
+This document describes the implementation of Pool data structures for the Roca decentralized social saving platform, completed as part of task SC-003.
 
 ## Data Structures
 

@@ -9,8 +9,8 @@ import "./Pool.sol";
 
 /**
  * @title PoolFactory
- * @author Arisan+ Team
- * @notice Factory contract for creating and managing Arisan+ savings pools
+ * @author Roca Team
+ * @notice Factory contract for creating and managing Roca savings pools
  * @dev Implements the factory pattern for pool creation with validation and registry
  */
 contract PoolFactory is AccessControl, ReentrancyGuard {

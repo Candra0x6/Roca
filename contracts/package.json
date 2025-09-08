@@ -1,7 +1,7 @@
 {
   "name": "arisan-plus-contracts",
   "version": "1.0.0",
-  "description": "Smart contracts for Arisan+ decentralized social saving platform",
+  "description": "Smart contracts for Roca decentralized social saving platform",
   "main": "index.js",
   "scripts": {
     "build": "hardhat compile",
@@ -19,6 +19,7 @@
     "deploy:all:mainnet": "hardhat run scripts/deploy-production.ts --network mainnet",
     
     "deploy:dev": "hardhat run scripts/deploy-dev.ts --network localhost",
+    "deploy:dev:auto": "./scripts/deploy-and-update.sh",
     "deploy:prod": "hardhat run scripts/deploy-production.ts",
     "deploy:badge": "hardhat run scripts/deploy-badge-integration.ts --network localhost",
     
@@ -46,7 +47,7 @@
     "arisan",
     "savings"
   ],
-  "author": "Arisan+ Team",
+  "author": "Roca Team",
   "license": "MIT",
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",

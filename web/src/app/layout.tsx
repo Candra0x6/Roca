@@ -6,9 +6,9 @@ import Navbar from "@/components/elements/navbar"
 import { WagmiProvider } from "@/components/providers/wagmi-provider"
 
 export const metadata: Metadata = {
-  title: "Arisan+ | Decentralized Social Saving",
+  title: "Roca | Decentralized Social Saving",
   description: "Join collaborative savings pools with DeFi yields and gamification",
-  generator: "Arisan+",
+  generator: "Roca",
 }
 
 export default function RootLayout({

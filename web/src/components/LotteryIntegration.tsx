@@ -44,7 +44,7 @@ import {
   Coins
 } from "lucide-react"
 
-import { useLotteryIntegration, type LotteryConfig, type PoolLotteryStatus } from "@/hooks"
+import { useLotteryIntegration, usePoolLotteryEligibility, type LotteryConfig, type PoolLotteryStatus } from "@/hooks"
 import { useAccount } from "wagmi"
 
 interface LotteryIntegrationProps {
@@ -55,6 +55,7 @@ interface LotteryIntegrationProps {
   isCreator?: boolean
   currentYield?: bigint
   totalContributions?: bigint
+  poolMembers?: number
 }
 
 export default function LotteryIntegration({
@@ -64,7 +65,8 @@ export default function LotteryIntegration({
   isAdmin = false,
   isCreator = false,
   currentYield = 0n,
-  totalContributions = 0n
+  totalContributions = 0n,
+  poolMembers = 0
 }: LotteryIntegrationProps) {
   const { address: account, isConnected } = useAccount()
   
@@ -106,6 +108,8 @@ export default function LotteryIntegration({
     formatDuration,
   } = useLotteryIntegration(poolAddress, poolId)
 
+    const { isEligible: isLotteryEligible } = usePoolLotteryEligibility(poolId)
+  
   // Component state
   const [showConfig, setShowConfig] = useState(false)
   const [participants, setParticipants] = useState<Address[]>([])
@@ -124,7 +128,7 @@ export default function LotteryIntegration({
         // Load participants
         const poolParticipants = await getPoolParticipants(poolId)
         setParticipants(poolParticipants)
-        
+        console.log("Pool Participants for Pool ID", poolId.toString(), ":", poolParticipants)
         // Calculate estimated prize
         if (currentYield > 0n) {
           const prize = await calculatePrizeAmount(poolId, currentYield)
@@ -140,7 +144,7 @@ export default function LotteryIntegration({
     }
 
     loadData()
-  }, [poolId, currentYield, getPoolLotteryStatus, getPoolParticipants, calculatePrizeAmount, getPoolDrawHistory])
+  }, [poolId, getPoolLotteryStatus, getPoolParticipants, calculatePrizeAmount, getPoolDrawHistory, currentYield])
 
   // Refresh data
   const handleRefresh = async () => {
@@ -209,15 +213,16 @@ export default function LotteryIntegration({
       return { text: "Inactive", color: "bg-red-500", icon: XCircle }
     }
     
-    if (poolLotteryStatus?.isEligible) {
+    if (isLotteryEligible) {
       return { text: "Eligible", color: "bg-green-500", icon: CheckCircle }
     }
     
     return { text: "Not Eligible", color: "bg-yellow-500", icon: AlertTriangle }
   }
 
+  console.log(poolLotteryStatus)
   const statusDisplay = getLotteryStatusDisplay()
-
+  console.log(participants)
   if (isLoading && !lotteryConfig) {
     return (
       <Card className="bg-neutral-900/50 border-neutral-800">
@@ -320,7 +325,7 @@ export default function LotteryIntegration({
               <Target className="w-5 h-5" />
               Pool Lottery Status
             </h3>
-            
+              
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-neutral-800/50 rounded-lg p-4">
                 <div className="flex items-center gap-2 text-sm text-neutral-400 mb-2">
@@ -328,7 +333,8 @@ export default function LotteryIntegration({
                   Participants
                 </div>
                 <div className="text-2xl font-bold text-white">
-                  {participants.length}
+                  {/* @ts-ignore */}
+                  {participants !== '0x' ? participants.length : '0'} / {String(poolMembers) || '0'}
                 </div>
                 <div className="text-sm text-neutral-400 mt-1">
                   Registered in lottery
@@ -367,7 +373,7 @@ export default function LotteryIntegration({
 
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-2">
-            {(isAdmin || isCreator) && poolLotteryStatus?.isEligible && (
+            {(isAdmin || isCreator) && isLotteryEligible && (
               <Button
                 onClick={handleDrawLottery}
                 disabled={isDrawing || !isConnected}
@@ -497,7 +503,8 @@ export default function LotteryIntegration({
       </Card>
 
       {/* Participants List */}
-      {participants.length > 0 && (
+      {/* @ts-ignore */}
+      {participants?.length > 0 && participants !== '0x' && (
         <Card className="bg-neutral-900/50 border-neutral-800">
           <CardHeader>
             <CardTitle className="text-white flex items-center gap-2">

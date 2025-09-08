@@ -1,6 +1,6 @@
 
 
-# 📋 **Project PRD — Arisan+ (On-Chain DeFi Yield Pool + Gamification)**
+# 📋 **Project PRD — Roca (On-Chain DeFi Yield Pool + Gamification)**
 
 ---
 
@@ -18,7 +18,7 @@
 
 ## **2. Goal & Purpose**
 
-Build **Arisan+**, a **decentralized social saving platform** that combines:
+Build **Roca**, a **decentralized social saving platform** that combines:
 
 1. **Arisan spirit** → community pooling, fairness, trustless rules.
 2. **DeFi yields** → funds are staked in protocols (e.g., Marinade) to earn interest.
@@ -74,13 +74,13 @@ Here’s the polished version:
 
 ---
 
-# ⚙️ **Smart Contract Implementation PRD — Arisan+ (DeFi Yield Pool + Gamification)**
+# ⚙️ **Smart Contract Implementation PRD — Roca (DeFi Yield Pool + Gamification)**
 
 ---
 
 ## **1. Architecture Overview**
 
-Arisan+ is structured as **modular contracts** for maintainability and upgradeability:
+Roca is structured as **modular contracts** for maintainability and upgradeability:
 
 1. **PoolFactory** → Creates and tracks pools.
 2. **Pool** → Core logic for each group (funds, members, payouts).
@@ -109,7 +109,7 @@ Arisan+ is structured as **modular contracts** for maintainability and upgradeab
 
 ### **2.2 Pool**
 
-* **Role**: Represents a single Arisan+ group.
+* **Role**: Represents a single Roca group.
 * **Core Data Structures**:
 
   * `members[]` → List of participant addresses.

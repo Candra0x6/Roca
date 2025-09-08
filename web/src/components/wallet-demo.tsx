@@ -15,7 +15,7 @@ export default function WalletDemo() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="text-center space-y-4">
-        <h1 className="text-4xl font-bold text-white">Arisan+ Wallet Demo {isConnected}</h1>
+        <h1 className="text-4xl font-bold text-white">Roca Wallet Demo {isConnected}</h1>
         <p className="text-white/70">Test wallet connection and smart contract integration</p>
       </div>
 

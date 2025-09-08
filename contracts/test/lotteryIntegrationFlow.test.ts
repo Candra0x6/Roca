@@ -18,7 +18,7 @@
  * - Verify badge minting for lottery winners
  * - Test lottery statistics and history
  * 
- * @author Arisan+ Team
+ * @author Roca Team
  */
 
 import "@nomicfoundation/hardhat-toolbox";

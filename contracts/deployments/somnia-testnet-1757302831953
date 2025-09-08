@@ -1,0 +1,18 @@
+{
+  "timestamp": "2025-09-08T03:40:32.390Z",
+  "network": "somnia",
+  "chainId": "50312",
+  "deployer": "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
+  "contracts": {
+    "YieldManager": {
+      "address": "0xC535a29eee933244e71Faf4ca82D9bF746EBa2Ee",
+      "transactionHash": "",
+      "blockNumber": 170673665
+    },
+    "PoolFactory": {
+      "address": "0x92E41BCf5415Ea1e47f25691620a3F5B964abEFF",
+      "transactionHash": "",
+      "blockNumber": 170673673
+    }
+  }
+}

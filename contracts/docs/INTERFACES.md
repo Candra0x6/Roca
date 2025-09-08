@@ -1,10 +1,10 @@
-# Arisan+ Smart Contract Interfaces
+# Roca Smart Contract Interfaces
 
-This document provides detailed specifications for the Arisan+ platform's smart contract interfaces.
+This document provides detailed specifications for the Roca platform's smart contract interfaces.
 
 ## Overview
 
-The Arisan+ platform consists of four main interface contracts that define the core functionality:
+The Roca platform consists of four main interface contracts that define the core functionality:
 
 - **IPool**: Core savings pool management
 - **ILottery**: Bonus lottery and prize distribution system  
@@ -336,4 +336,4 @@ All interfaces follow comprehensive NatSpec documentation:
 - **Security considerations** for each function
 - **Gas optimization** notes where relevant
 
-This interface specification serves as the foundation for implementing the complete Arisan+ decentralized savings platform.
+This interface specification serves as the foundation for implementing the complete Roca decentralized savings platform.

@@ -1,6 +1,6 @@
-# Arisan+ User Flow by Point of View (POV)
+# Roca User Flow by Point of View (POV)
 
-This document provides detailed user flows from different perspectives, showing exactly which functions each type of user calls throughout their journey in the Arisan+ platform.
+This document provides detailed user flows from different perspectives, showing exactly which functions each type of user calls throughout their journey in the Roca platform.
 
 ## Table of Contents
 1. [Pool Creator Journey](#pool-creator-journey)
@@ -565,4 +565,4 @@ This document provides detailed user flows from different perspectives, showing 
 - Configuration updates
 - Manual status changes
 
-This document provides a comprehensive view of how different users interact with the Arisan+ platform, showing the exact functions they call and when they call them throughout their journey.
+This document provides a comprehensive view of how different users interact with the Roca platform, showing the exact functions they call and when they call them throughout their journey.

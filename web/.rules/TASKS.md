@@ -1,4 +1,4 @@
-# Arisan+ Development Tasks
+# Roca Development Tasks
 
 **Product**: Decentralized social saving platform with DeFi yields and gamification on Ethereum
 

@@ -11,8 +11,8 @@ import "./interfaces/IBadge.sol";
 
 /**
  * @title LotteryManager
- * @author Arisan+ Team
- * @notice Implementation of Arisan+ lottery bonus system with pseudo-randomness
+ * @author Roca Team
+ * @notice Implementation of Roca lottery bonus system with pseudo-randomness
  * @dev Manages weekly bonus draws and prize distribution for pool members using block hash for MVP
  */
 contract LotteryManager is ILottery, AccessControl, ReentrancyGuard, Pausable {

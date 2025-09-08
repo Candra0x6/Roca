@@ -1,7 +1,13 @@
 import { useAccount, useBalance, useConnect, useDisconnect, useChainId, useSwitchChain } from 'wagmi'
 import { useCallback, useEffect, useState } from 'react'
 import { formatEther } from 'viem'
-import { hardhat, sepolia, mainnet } from 'wagmi/chains'
+import { sepolia, mainnet } from 'wagmi/chains'
+
+// Somnia testnet chain definition (matching wagmi.ts)
+const somniaTestnet = {
+  id: 50312,
+  name: 'Somnia Testnet',
+} as const
 
 export function useWalletConnection() {
   const { address, isConnected, isConnecting, isDisconnected } = useAccount()
@@ -68,15 +74,15 @@ export function useWalletConnection() {
   // Switch to a specific network
   const switchToNetwork = useCallback((targetChainId: number) => {
     if (switchChain) {
-      switchChain({ chainId: targetChainId as 1 | 31337 | 11155111 })
+      switchChain({ chainId: targetChainId as 1 | 50312 | 11155111 })
     }
   }, [switchChain])
 
   // Get chain information
   const getChainInfo = useCallback(() => {
     switch (chainId) {
-      case hardhat.id:
-        return { name: 'Hardhat', shortName: 'Hardhat', color: '#f59e0b' }
+      case somniaTestnet.id:
+        return { name: 'Somnia Testnet', shortName: 'Somnia', color: '#8b5cf6' }
       case sepolia.id:
         return { name: 'Sepolia', shortName: 'Sepolia', color: '#3b82f6' }
       case mainnet.id:

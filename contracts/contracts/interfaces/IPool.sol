@@ -3,8 +3,8 @@ pragma solidity 0.8.28;
 
 /**
  * @title IPool
- * @author Arisan+ Team
- * @notice Interface for Arisan+ savings pool contracts
+ * @author Roca Team
+ * @notice Interface for Roca savings pool contracts
  * @dev Defines the core functionality for decentralized social saving pools
  */
 interface IPool {

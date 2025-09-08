@@ -11,8 +11,8 @@ import "./interfaces/IBadge.sol";
 
 /**
  * @title RewardNFT
- * @author Arisan+ Team
- * @notice Achievement badge NFT system for Arisan+ platform gamification
+ * @author Roca Team
+ * @notice Achievement badge NFT system for Roca platform gamification
  * @dev Implements IBadge interface with ERC721 functionality for user milestones
  */
 contract RewardNFT is IBadge, ERC721, ERC721URIStorage, ERC721Enumerable, AccessControl, ReentrancyGuard, Pausable {

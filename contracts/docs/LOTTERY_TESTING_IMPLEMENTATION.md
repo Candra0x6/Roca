@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the comprehensive testing implementation for the Arisan+ lottery system, covering the `LotteryManager` contract and its integration with the pool ecosystem.
+This document describes the comprehensive testing implementation for the Roca lottery system, covering the `LotteryManager` contract and its integration with the pool ecosystem.
 
 ## Test File Created
 
@@ -226,6 +226,6 @@ The lottery tests are designed to complement the existing `fullFlow.test.ts` int
 
 ## Conclusion
 
-The lottery testing implementation provides comprehensive coverage of the `LotteryManager` contract functionality, focusing on configuration management, security, and integration with the broader Arisan+ ecosystem. The tests establish a solid foundation for lottery system validation while identifying areas for future enhancement in draw execution and advanced features.
+The lottery testing implementation provides comprehensive coverage of the `LotteryManager` contract functionality, focusing on configuration management, security, and integration with the broader Roca ecosystem. The tests establish a solid foundation for lottery system validation while identifying areas for future enhancement in draw execution and advanced features.
 
 The implementation successfully validates ~85% of the lottery system requirements from the PRD, with the remaining 15% being advanced features like actual winner selection, prize distribution mechanics, and complex multi-pool lottery scenarios that would require additional integration testing.

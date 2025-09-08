@@ -22,8 +22,8 @@ interface IPoolFactory {
 
 /**
  * @title Pool
- * @author Arisan+ Team
- * @notice Implementation of Arisan+ savings pool contract
+ * @author Roca Team
+ * @notice Implementation of Roca savings pool contract
  * @dev Implements the full pool lifecycle with state machine transitions
  */
 contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
@@ -839,7 +839,6 @@ contract Pool is IPool, AccessControl, ReentrancyGuard, Pausable {
         
     //     _requestLotteryDrawIfEligible();
     // }
-
     /**
      * @notice Emergency pause function
      * @dev Only emergency admin can pause the contract

@@ -267,4 +267,4 @@ SC-009 successfully enhances the lottery system with:
 - ✅ **Enhanced prize distribution** - Automatic yield integration and batch processing
 - ✅ **Production-ready implementation** - Full security, testing, and documentation
 
-The implementation provides a robust foundation for the Arisan+ lottery system while maintaining compatibility with existing infrastructure and supporting future enhancements.
+The implementation provides a robust foundation for the Roca lottery system while maintaining compatibility with existing infrastructure and supporting future enhancements.

@@ -3,8 +3,8 @@ pragma solidity 0.8.28;
 
 /**
  * @title ILottery
- * @author Arisan+ Team
- * @notice Interface for Arisan+ lottery bonus system
+ * @author Roca Team
+ * @notice Interface for Roca lottery bonus system
  * @dev Manages weekly bonus draws and prize distribution for pool members
  */
 interface ILottery {
