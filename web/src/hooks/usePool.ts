@@ -133,6 +133,7 @@ export function usePool(poolAddress: Address): UsePoolReturn {
     if (!poolInfo || !membersWithInfo) return null
 
     const info = poolInfo as any
+    console.log("PoolINfo", info)
     console.log("insinsisinfo", info)
     const isUserMember = account && membersWithInfo.some((member: any) => member.member === account)
     const userMember = userMembership as any
@@ -288,15 +289,12 @@ export function usePool(poolAddress: Address): UsePoolReturn {
         functionName: 'withdrawShare',
       })
 
-      // Wait for transaction to be mined
   
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Failed to withdraw share')
       setError(error)
       throw error
-    } finally {
-      setIsLoading(false)
-    }
+    } 
   }, [account, poolDetails, poolAddress, writeContract])
 
   const completePool = useCallback(async () => {
@@ -504,9 +502,7 @@ export function usePoolMembers(poolAddress: Address) {
     address: poolAddress,
     abi: POOL_ABI,
     functionName: 'getMembers',
-    query: {
-      refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
-    },
+    
   })
 
   return {
@@ -526,7 +522,6 @@ export function useIsMember(poolAddress: Address, userAddress: Address | undefin
     args: userAddress ? [userAddress] : undefined,
     query: {
       enabled: !!userAddress,
-      refetchInterval: 5000,
     },
   })
 
@@ -546,7 +541,6 @@ export function useMemberInfo(poolAddress: Address, memberAddress: Address | und
     args: memberAddress ? [memberAddress] : undefined,
     query: {
       enabled: !!memberAddress,
-      refetchInterval: 5000,
     },
   })
 

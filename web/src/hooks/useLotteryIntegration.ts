@@ -16,7 +16,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react'
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi'
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useChainId, usePublicClient } from 'wagmi'
 import { Address, formatEther } from 'viem'
 import { LOTTERY_MANAGER_ABI, POOL_ABI, getContractAddress } from '@/contracts/config'
 
@@ -123,6 +123,7 @@ export interface UseLotteryIntegrationReturn {
 export function useLotteryIntegration(poolAddress?: Address, poolId?: bigint): UseLotteryIntegrationReturn {
   const { address: account } = useAccount()
   const chainId = useChainId()
+  const publicClient = usePublicClient()
   
   // Component state
   const [isLoading, setIsLoading] = useState(false)
@@ -179,7 +180,7 @@ export function useLotteryIntegration(poolAddress?: Address, poolId?: bigint): U
     } finally {
       setIsConfiguring(false)
     }
-  }, [account, lotteryManagerAddress, writeContract])
+  }, [])
 
   // Set lottery active/inactive
   const setLotteryActive = useCallback(async (active: boolean) => {
@@ -204,7 +205,7 @@ export function useLotteryIntegration(poolAddress?: Address, poolId?: bigint): U
     } finally {
       setIsConfiguring(false)
     }
-  }, [account, lotteryManagerAddress, writeContract])
+  }, [])
 
   // Get pool lottery status
   const getPoolLotteryStatus = useCallback(async (targetPoolId: bigint): Promise<PoolLotteryStatus | null> => {
@@ -251,26 +252,26 @@ export function useLotteryIntegration(poolAddress?: Address, poolId?: bigint): U
     } finally {
       setIsLoading(false)
     }
-  }, [lotteryManagerAddress])
+  }, [])
 
   // Check if pool is eligible for lottery
   const isPoolEligible = useCallback(async (targetPoolId: bigint): Promise<boolean> => {
-    if (!lotteryManagerAddress) return false
+    if (!lotteryManagerAddress || !publicClient) return false
 
     try {
-      const result = await window.ethereum.request({
-        method: 'eth_call',
-        params: [{
-          to: lotteryManagerAddress,
-          data: `0x${LOTTERY_MANAGER_ABI.find(f => f.name === 'isPoolEligible')?.inputs ? '' : ''}`
-        }]
+      const result = await publicClient.readContract({
+        address: lotteryManagerAddress,
+        abi: LOTTERY_MANAGER_ABI,
+        functionName: 'isPoolEligible',
+        args: [targetPoolId],
       })
+
       return Boolean(result)
     } catch (err) {
       console.error('Failed to check pool eligibility:', err)
       return false
     }
-  }, [lotteryManagerAddress])
+  }, [])
 
   // Request lottery draw
   const requestLotteryDraw = useCallback(async (targetPoolId: bigint) => {
@@ -295,7 +296,7 @@ export function useLotteryIntegration(poolAddress?: Address, poolId?: bigint): U
     } finally {
       setIsDrawing(false)
     }
-  }, [account, lotteryManagerAddress, writeContract])
+  }, [])
 
   // Get lottery draw information
   const getLotteryDraw = useCallback(async (drawId: bigint): Promise<LotteryDraw | null> => {
@@ -317,7 +318,7 @@ export function useLotteryIntegration(poolAddress?: Address, poolId?: bigint): U
       console.error('Failed to get lottery draw:', err)
       return null
     }
-  }, [lotteryManagerAddress])
+  }, [])
 
   // Get pool draw history
   const getPoolDrawHistory = useCallback(async (targetPoolId: bigint): Promise<LotteryDraw[]> => {
@@ -335,22 +336,27 @@ export function useLotteryIntegration(poolAddress?: Address, poolId?: bigint): U
 
   // Get pool participants
   const getPoolParticipants = useCallback(async (targetPoolId: bigint): Promise<Address[]> => {
-    if (!lotteryManagerAddress) return []
+    if (!lotteryManagerAddress || !publicClient) return []
 
     try {
-      const result = await window.ethereum.request({
-        method: 'eth_call',
-        params: [{
-          to: lotteryManagerAddress,
-          data: `0x${LOTTERY_MANAGER_ABI.find(f => f.name === 'getPoolParticipants')?.inputs ? '' : ''}`
-        }]
+      const result = await publicClient.readContract({
+        address: lotteryManagerAddress,
+        abi: LOTTERY_MANAGER_ABI,
+        functionName: 'getPoolParticipants',
+        args: [targetPoolId],
       })
-      return result || []
+
+      // The contract returns an array of Participant structs, extract participantAddress
+      if (Array.isArray(result)) {
+        return result.map((participant: any) => participant.participantAddress || participant[0])
+      }
+      
+      return []
     } catch (err) {
-      console.error('Failed to get pool participants:', err)
+      console.error('Failed to get pool participants:', err, 'PoolId:', targetPoolId)
       return []
     }
-  }, [lotteryManagerAddress])
+  }, [lotteryManagerAddress, publicClient])
 
   // Add participants to lottery
   const addParticipants = useCallback(async (targetPoolId: bigint, participants: Address[], weights: bigint[]) => {
@@ -375,7 +381,7 @@ export function useLotteryIntegration(poolAddress?: Address, poolId?: bigint): U
     } finally {
       setIsUpdatingParticipants(false)
     }
-  }, [account, lotteryManagerAddress, writeContract])
+  }, [])
 
   // Remove participant from lottery
   const removeParticipant = useCallback(async (targetPoolId: bigint, participant: Address) => {
@@ -400,7 +406,7 @@ export function useLotteryIntegration(poolAddress?: Address, poolId?: bigint): U
     } finally {
       setIsUpdatingParticipants(false)
     }
-  }, [account, lotteryManagerAddress, writeContract])
+  }, [])
 
   // Get global lottery statistics
   const getGlobalLotteryStats = useCallback(async (): Promise<LotteryStats | null> => {
@@ -430,7 +436,7 @@ export function useLotteryIntegration(poolAddress?: Address, poolId?: bigint): U
       console.error('Failed to get global lottery stats:', err)
       return null
     }
-  }, [lotteryManagerAddress])
+  }, [])
 
   // Calculate prize amount
   const calculatePrizeAmount = useCallback(async (targetPoolId: bigint, yieldAmount: bigint): Promise<bigint> => {
@@ -449,7 +455,7 @@ export function useLotteryIntegration(poolAddress?: Address, poolId?: bigint): U
       console.error('Failed to calculate prize amount:', err)
       return 0n
     }
-  }, [lotteryManagerAddress])
+  }, [])
 
   // Emergency functions
   const emergencyPause = useCallback(async () => {
@@ -488,7 +494,7 @@ export function useLotteryIntegration(poolAddress?: Address, poolId?: bigint): U
       setError(error)
       throw error
     }
-  }, [account, lotteryManagerAddress, writeContract])
+  }, [])
 
   const withdrawFunds = useCallback(async (amount: bigint, recipient: Address) => {
     if (!account) {
@@ -550,7 +556,7 @@ export function useLotteryIntegration(poolAddress?: Address, poolId?: bigint): U
 
   return {
     // Configuration
-    lotteryConfig,
+    lotteryConfig : lotteryConfig || null,
     updateLotteryConfig,
     setLotteryActive,
     
