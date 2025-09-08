@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ArrowLeft, Clock, Users, DollarSign, TrendingUp, AlertTriangle, X, Loader2, ExternalLink, Shield, RefreshCw, Zap } from "lucide-react"
+import { ArrowLeft, Clock, Users, DollarSign, TrendingUp, AlertTriangle, X, Loader2, ExternalLink, Shield, RefreshCw, Zap, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
 import { formatEther } from "viem"
@@ -11,31 +11,31 @@ import { Badge } from "@/components/ui/badge"
 import DotGridShader from "@/components/DotGridShader"
 import AnimatedHeading from "@/components/animated-heading"
 import RevealOnView from "@/components/reveal-on-view"
-import LotteryIntegration from "@/components/LotteryIntegration"
-import { usePool, usePoolId, usePoolYield, useTimeSimulation, useWithdrawalInfo } from "@/hooks"
+import { usePool, usePoolId, usePoolYield, useTimeSimulation, useWithdrawalInfo, useLotteryParticipants, usePoolLotteryEligibility } from "@/hooks"
 import { useAccount } from "wagmi"
 import { PoolState } from "@/contracts/types"
 
 export default function PoolDetail({ params }: { params: { id: string } }) {
   const { address: account, isConnected } = useAccount()
-  
-  const { 
-    poolInfo : poolDetails,
+
+  const {
+    poolInfo: poolDetails,
     canJoin,
     canLeave,
     canWithdraw,
-    joinPool: handleJoinPool, 
+    joinPool: handleJoinPool,
     leavePool: handleLeavePool,
     withdrawShare: handleWithdrawShare,
     completePool: handleCompletePool,
     triggerCompletion: handleTriggerCompletion,
+    refetch: refetchPool,
     isLoading: isPoolLoading,
     error: poolError,
   } = usePool(params.id as `0x${string}`)
 
   // Get pool ID for yield management
   const { poolId } = usePoolId(params.id as `0x${string}`)
-  
+
   // Get yield data
   const {
     currentYield,
@@ -61,6 +61,10 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
     isSimulating,
     isHardhatNetwork
   } = useTimeSimulation()
+
+  // Lottery data for debugging
+  const { participants, participantCount, isLoading: isLotteryLoading } = useLotteryParticipants(poolId)
+  const { isEligible: isLotteryEligible } = usePoolLotteryEligibility(poolId)
 
   // Transaction states
   const [isJoining, setIsJoining] = useState(false)
@@ -96,6 +100,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
   const [showDepositModal, setShowDepositModal] = useState(false)
   const [showLeaveModal, setShowLeaveModal] = useState(false)
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
+  const [showAllMembers, setShowAllMembers] = useState(false)
   const [timeLeft, setTimeLeft] = useState("")
   const [depositStatus, setDepositStatus] = useState<"idle" | "success" | "error">("idle")
   const [depositError, setDepositError] = useState<string>("")
@@ -171,7 +176,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
 
     try {
       await handleJoinPool()
-      
+
       setDepositStatus("success")
       toast.success("Successfully joined the pool!")
 
@@ -224,6 +229,18 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
   }
   console.log(poolDetails)
 
+  // Debug lottery information
+  useEffect(() => {
+    if (poolId && poolId > 0n) {
+      console.log("🎰 Lottery Debug Information:");
+      console.log("Pool ID:", poolId.toString());
+      console.log("Lottery Participants:", participants);
+      console.log("Participant Count:", participantCount);
+      console.log("Is Lottery Eligible:", isLotteryEligible);
+      console.log("Is Loading Lottery:", isLotteryLoading);
+    }
+  }, [poolId, participants, participantCount, isLotteryEligible, isLotteryLoading])
+
   const handleWithdrawShareAction = async () => {
     if (!isConnected) {
       toast.error("Please connect your wallet first")
@@ -241,9 +258,27 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
 
     try {
       await handleWithdrawShare()
-      
+
       setWithdrawStatus("success")
-      toast.success("Successfully withdrew your share!")
+      
+      // Show detailed success message with withdrawal amounts
+      if (withdrawalInfo) {
+        const principalEth = formatEther(withdrawalInfo.principal)
+        const yieldEth = formatEther(withdrawalInfo.yieldShare)
+        const totalEth = formatEther(withdrawalInfo.totalAmount)
+        
+        toast.success(`Successfully withdrew ${totalEth} ETH! (${principalEth} ETH principal + ${yieldEth} ETH yield)`)
+      } else {
+        toast.success("Successfully withdrew your share!")
+      }
+
+      // Refresh pool data to update member status and pool state
+      await refetchPool()
+      
+      // Update yield data if available
+      if (poolId && poolId > 0n) {
+        await refetchYield()
+      }
 
       // Auto-close modal after success
       setTimeout(() => {
@@ -326,7 +361,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
     try {
       await simulateDays(days)
       toast.success(`Simulated ${days} day(s) passing`)
-      
+
       // Update yield after time simulation
       if (poolId && poolId > 0n) {
         await updateYield()
@@ -338,7 +373,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
       const createdTime = Number(poolDetails?.createdAt) * 1000
       const duration = Number(poolDetails?.duration) * 1000
       const endTime = createdTime + duration
-      
+
       if (blockchainTime >= endTime && poolDetails?.state !== 3) {
         toast.info("Pool duration has ended! You can now trigger completion.")
       }
@@ -362,7 +397,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
     try {
       await fastEndPool(poolDetails.createdAt, poolDetails.duration)
       toast.success("Pool fast-forwarded to completion!")
-      
+
       // Update yield after time simulation
       if (poolId && poolId > 0n) {
         await updateYield()
@@ -395,17 +430,17 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
   const checkSpecificContractBalance = async (contractAddress: string) => {
     try {
       console.log(`🔍 Checking balance for contract: ${contractAddress}`)
-      
+
       const balance = await window.ethereum.request({
         method: 'eth_getBalance',
         params: [contractAddress, 'latest']
       })
-      
+
       const balanceInEth = formatEther(BigInt(balance))
       console.log(`Contract ${contractAddress} balance:`, balanceInEth, "ETH")
-      
+
       toast.info(`Contract balance: ${balanceInEth} ETH`)
-      
+
       return {
         address: contractAddress,
         balance: BigInt(balance),
@@ -420,7 +455,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
 
   const handleCheckYieldManagerBalance = async () => {
     // The address you provided - likely the yield manager
-    const yieldManagerAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+    const yieldManagerAddress = "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318"
     await checkSpecificContractBalance(yieldManagerAddress)
   }
 
@@ -431,16 +466,16 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
 
   const handleCheckAllBalances = async () => {
     console.log("🔍 Checking all relevant contract balances:")
-    
+
     // Check pool contract
     console.log("1. Pool Contract:")
     await checkSpecificContractBalance(params.id)
-    
+
     // Check yield manager
     console.log("2. Yield Manager:")
     const yieldManagerAddress = "0x610178dA211FEF7D417bC0e6FeD39F05609AD788"
     await checkSpecificContractBalance(yieldManagerAddress)
-    
+
     // Summary
     console.log("💡 If yield manager has funds but pool doesn't, try 'Update Yield' to transfer funds back")
   }
@@ -457,11 +492,11 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
     console.log("User Membership:", poolDetails.userMembership)
     console.log("Total Funds:", formatEther(poolDetails.totalContributions || 0n), "ETH")
     console.log("Yield Generated:", formatEther(poolDetails.yieldGenerated || 0n), "ETH")
-    
+
     if (withdrawalInfo) {
       console.log("Withdrawal Info:")
       console.log("- Principal:", formatEther(withdrawalInfo.principal), "ETH")
-      console.log("- Yield Share:", formatEther(withdrawalInfo.yieldShare), "ETH") 
+      console.log("- Yield Share:", formatEther(withdrawalInfo.yieldShare), "ETH")
       console.log("- Total Amount:", formatEther(withdrawalInfo.totalAmount), "ETH")
       console.log("- Has Withdrawn:", withdrawalInfo.hasWithdrawn)
       console.log("- Can Withdraw:", withdrawalInfo.canWithdraw)
@@ -475,15 +510,15 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
       })
       const balanceInEth = formatEther(BigInt(balance))
       console.log("📊 Pool Contract Balance:", balanceInEth, "ETH")
-      
+
       if (withdrawalInfo && BigInt(balance) < withdrawalInfo.totalAmount) {
         console.log("⚠️ WARNING: Contract balance insufficient for withdrawal!")
         console.log("Expected:", formatEther(withdrawalInfo.totalAmount), "ETH")
         console.log("Available:", balanceInEth, "ETH")
         console.log("Shortfall:", formatEther(withdrawalInfo.totalAmount - BigInt(balance)), "ETH")
-        
+
         toast.error(`Contract balance (${balanceInEth} ETH) is less than withdrawal amount (${formatEther(withdrawalInfo.totalAmount)} ETH)`)
-        
+
         console.log("💡 FIXES TO TRY:")
         console.log("1. Click 'Update Yield & Transfer Funds' to transfer funds back from yield manager")
         console.log("2. Click 'Re-trigger Pool Completion' to complete pool again")
@@ -491,7 +526,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
       } else if (withdrawalInfo) {
         console.log("✅ Contract balance sufficient for withdrawal")
       }
-      
+
     } catch (error) {
       console.error("Failed to check contract balance:", error)
     }
@@ -688,7 +723,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                                 </Button>
                               )}
                             </div>
-                            
+
                             <div className="grid grid-cols-2 gap-4 text-center">
                               <div>
                                 <div className="flex items-center justify-center gap-1 mb-1">
@@ -725,7 +760,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                                 </p>
                               </div>
                             </div>
-                            
+
                             {/* Yield Progress Bar */}
                             {deposits > 0n && (
                               <div className="mt-4">
@@ -738,8 +773,8 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                                 <div className="w-full bg-neutral-700 rounded-full h-2">
                                   <div
                                     className="bg-gradient-to-r from-cyan-500 to-purple-500 h-2 rounded-full transition-all duration-500"
-                                    style={{ 
-                                      width: `${Math.min(100, (Number(formatYield(currentYield)) / Number(formatYield(deposits))) * 100)}%` 
+                                    style={{
+                                      width: `${Math.min(100, (Number(formatYield(currentYield)) / Number(formatYield(deposits))) * 100)}%`
                                     }}
                                   />
                                 </div>
@@ -753,7 +788,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                           <div className="grid grid-cols-2 gap-4 text-center">
                             <div>
                               <p className="text-lg font-semibold text-cyan-400">
-                                {formatEther(poolDetails.yieldGenerated || 0n)} ETH
+                                {formatEther(poolDetails.yieldGenerated || (withdrawalInfo?.yieldShare ? withdrawalInfo.yieldShare * poolDetails.currentMembers : 0n))} ETH
                               </p>
                               <p className="text-xs text-white/60">Total Yield Earned</p>
                             </div>
@@ -784,30 +819,51 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                   </div>
 
                   <div className="relative z-10">
-                    <h3 className="text-lg font-semibold text-white mb-4">Pool Members</h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-white">Pool Members</h3>
+                      {poolDetails.members.length > 0 && (
+                        <Button
+                          onClick={() => setShowAllMembers(!showAllMembers)}
+                          variant="outline"
+                          size="sm"
+                          className="rounded-full border-white/20 text-white hover:bg-white/10 bg-transparent text-xs px-3 py-1 h-7"
+                        >
+                          {showAllMembers ? (
+                            <>
+                              <EyeOff className="h-3 w-3 mr-1" />
+                              Show Less
+                            </>
+                          ) : (
+                            <>
+                              <Eye className="h-3 w-3 mr-1" />
+                              Show All ({poolDetails.members.length})
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
 
                     <div className="space-y-3">
-                      {poolDetails.members.map((member, index) => {
+                      {(showAllMembers ? poolDetails.members : poolDetails.members.slice(0, 2)).map((member, index) => {
                         const isCreator = member.member === poolDetails.creator
                         const isCurrentUser = member.member === account
                         const joinedDate = new Date(Number(member.joinedAt) * 1000)
-                        
+                        const actualIndex = showAllMembers ? index : poolDetails.members.findIndex(m => m.member === member.member)
+
                         return (
                           <div
                             key={member.member}
-                            className={`flex items-center justify-between p-4 rounded-2xl border ${
-                              isCurrentUser
+                            className={`flex items-center justify-between p-4 rounded-2xl border ${isCurrentUser
                                 ? "bg-blue-500/10 border-blue-500/30"
                                 : "bg-neutral-800/30 border-white/10"
-                            }`}
+                              }`}
                           >
                             <div className="flex items-center gap-3">
                               <div
-                                className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${
-                                  isCurrentUser ? "bg-blue-500 text-white" : "bg-neutral-700 text-white/70"
-                                }`}
+                                className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${isCurrentUser ? "bg-blue-500 text-white" : "bg-neutral-700 text-white/70"
+                                  }`}
                               >
-                                {index + 1}
+                                {actualIndex + 1}
                               </div>
                               <div>
                                 <div className="flex items-center gap-2">
@@ -834,11 +890,10 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
 
                             <div className="text-right">
                               <Badge
-                                className={`${
-                                  member.hasWithdrawn
+                                className={`${member.hasWithdrawn
                                     ? "bg-green-500/20 text-green-400 border-green-500/30"
                                     : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
-                                }`}
+                                  }`}
                               >
                                 {member.hasWithdrawn ? "Withdrawn" : "Active"}
                               </Badge>
@@ -846,9 +901,23 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                           </div>
                         )
                       })}
-                      
-                      {/* Empty slots */}
-                      {Array.from({ length: Number(poolDetails.maxMembers) - poolDetails.members.length }).map((_, index) => (
+
+                      {/* Show collapsed indicator when not showing all members */}
+                      {!showAllMembers && poolDetails.members.length > 2 && (
+                        <div className="flex items-center justify-center p-3 rounded-2xl border border-dashed border-white/20 bg-neutral-800/10">
+                          <div className="flex items-center gap-2 text-white/50">
+                            <div className="flex gap-1">
+                              <div className="w-1.5 h-1.5 bg-white/30 rounded-full"></div>
+                              <div className="w-1.5 h-1.5 bg-white/30 rounded-full"></div>
+                              <div className="w-1.5 h-1.5 bg-white/30 rounded-full"></div>
+                            </div>
+                            <span className="text-sm">and {poolDetails.members.length - 2} more members</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Empty slots - only show when showing all members or when there are few members */}
+                      {(showAllMembers || poolDetails.members.length <= 2) && Array.from({ length: Number(poolDetails.maxMembers) - poolDetails.members.length }).map((_, index) => (
                         <div
                           key={`empty-${index}`}
                           className="flex items-center justify-between p-4 rounded-2xl border border-dashed border-white/20 bg-neutral-800/10"
@@ -871,6 +940,86 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                   </div>
                 </div>
               </RevealOnView>
+                 {/* Final Pool State Display - For completed pools */}
+              {poolDetails.state === PoolState.Completed && (
+                <RevealOnView delay={0.45}>
+                  <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-neutral-900/60 p-6">
+                    <div className="pointer-events-none absolute inset-0 opacity-5 mix-blend-soft-light">
+                      <DotGridShader />
+                    </div>
+
+                    <div className="relative z-10">
+                      <h3 className="text-lg font-semibold text-white mb-4">Pool Summary</h3>
+
+                      <div className="space-y-4">
+                        <div className="bg-neutral-800/30 rounded-2xl p-4 border border-white/10">
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-white/70">Total Members:</span>
+                              <span className="text-white font-medium">{Number(poolDetails.currentMembers)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-white/70">Total Principal:</span>
+                              <span className="text-white font-medium">{formatEther(poolDetails.totalContributions)} ETH</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-white/70">Total Yield Generated:</span>
+                              <span className="text-cyan-400 font-medium">{formatEther(poolDetails.yieldGenerated || (withdrawalInfo?.yieldShare ? withdrawalInfo.yieldShare * poolDetails.currentMembers : 0n))} ETH</span>
+                            </div>
+                            <div className="pt-2 border-t border-white/10">
+                              <div className="flex justify-between items-center">
+                                <span className="text-white font-medium">Final Pool Value:</span>
+                                <span className="text-green-400 font-bold text-lg">
+                                  {formatEther(poolDetails.totalContributions + (withdrawalInfo?.yieldShare ? withdrawalInfo.yieldShare * poolDetails.currentMembers : 0n))} ETH
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Member Withdrawal Status */}
+                        <div className="bg-neutral-800/30 rounded-2xl p-4 border border-white/10">
+                          <h4 className="text-sm font-medium text-white mb-3">Withdrawal Status</h4>
+                          <div className="space-y-2">
+                            {poolDetails.members.map((member, index) => (
+                              <div key={member.member} className="flex items-center justify-between text-sm">
+                                <span className="text-white/70 font-mono">
+                                  {member.member === account ? "You" : `Member ${index + 1}`}
+                                </span>
+                                <Badge
+                                  className={`text-xs ${member.hasWithdrawn
+                                      ? "bg-green-500/20 text-green-400 border-green-500/30"
+                                      : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+                                    }`}
+                                >
+                                  {member.hasWithdrawn ? "Withdrawn" : "Pending"}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </RevealOnView>
+              )}
+
+              {/* Lottery Integration Component */}
+              {/* Display lottery integration - MVP  */}
+              {/* {poolId && poolId > 0n && (
+                <RevealOnView delay={0.5}>
+                  <LotteryIntegration
+                    poolAddress={params.id as `0x${string}`}
+                    poolId={poolId}
+                    poolMembers={Number(poolDetails.maxMembers)}
+                    poolName={poolDetails.name}
+                    isAdmin={account === poolDetails.creator} // For demo, creator has admin rights
+                    isCreator={account === poolDetails.creator}
+                    currentYield={currentYield}
+                    totalContributions={poolDetails.totalContributions}
+                  />
+                </RevealOnView>
+              )} */}
             </div>
 
             {/* Right Column - Actions */}
@@ -884,7 +1033,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
 
                   <div className="relative z-10">
                     <h3 className="text-lg font-semibold text-white mb-4">Pool Information</h3>
-                    
+
                     <div className="space-y-3">
                       <div className="flex justify-between items-center py-2 border-b border-white/10">
                         <span className="text-white/70">Created</span>
@@ -892,33 +1041,44 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                           {new Date(Number(poolDetails.createdAt) * 1000).toLocaleDateString()}
                         </span>
                       </div>
-                      
+
                       <div className="flex justify-between items-center py-2 border-b border-white/10">
                         <span className="text-white/70">Duration</span>
                         <span className="text-white font-medium">
                           {Math.floor(Number(poolDetails.duration) / (24 * 60 * 60))} days
                         </span>
                       </div>
-                      
+
                       <div className="flex justify-between items-center py-2 border-b border-white/10">
                         <span className="text-white/70">Creator</span>
                         <span className="text-white font-medium font-mono text-sm">
                           {poolDetails.creator.slice(0, 6)}...{poolDetails.creator.slice(-4)}
                         </span>
                       </div>
-                      
+
                       <div className="flex justify-between items-center py-2">
                         <span className="text-white/70">Status</span>
                         <Badge className={getStatusColor(getStatusString(poolDetails.state))}>
                           {getStatusString(poolDetails.state)}
                         </Badge>
                       </div>
+                      <div className="text-center p-4 bg-neutral-800/30 rounded-2xl border border-white/10">
+                        <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-yellow-400" />
+                        <p className="text-white/70">
+                          {poolDetails.state === 3
+                            ? "This pool has been completed"
+                            : Number(poolDetails.currentMembers) >= Number(poolDetails.maxMembers)
+                              ? "Pool is full"
+                              : poolDetails.state === 1 && "Pool is locked and generating yield"
+                          }
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
               </RevealOnView>
 
-              {/* Contract Balance Debugging - Development Tools */}
+              {/* Contract Balance Debugging - Development Tools
               {isHardhatNetwork && (
                 <RevealOnView delay={0.32}>
                   <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-neutral-900/60 p-6">
@@ -985,10 +1145,10 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                     </div>
                   </div>
                 </RevealOnView>
-              )}
+              )} */}
 
               {/* Yield Management - Creator Only */}
-              { (poolDetails.state === PoolState.Locked || poolDetails.state === PoolState.Active) && (
+              {(poolDetails.state === PoolState.Locked || poolDetails.state === PoolState.Active) && (
                 <RevealOnView delay={0.35}>
                   <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-neutral-900/60 p-6">
                     <div className="pointer-events-none absolute inset-0 opacity-5 mix-blend-soft-light">
@@ -1005,73 +1165,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                       </div>
 
                       <div className="space-y-4">
-                        {/* Quick Stats */}
-                        <div className="bg-neutral-800/30 rounded-2xl p-4 border border-white/10">
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="text-center">
-                              <p className="text-sm text-white/70 mb-1">Principal</p>
-                              <p className="text-lg font-bold text-white">
-                                {isYieldLoading ? (
-                                  <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                                ) : (
-                                  `${formatYield(deposits)} ETH`
-                                )}
-                              </p>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-sm text-white/70 mb-1">Current Yield</p>
-                              <p className="text-lg font-bold text-cyan-400">
-                                {isYieldLoading ? (
-                                  <Loader2 className="h-4 w-4 animate-spin mx-auto" />
-                                ) : (
-                                  `${formatYield(currentYield)} ETH`
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                          
-                          {yieldPercentage > 0 && (
-                            <div className="mt-3 pt-3 border-t border-white/10">
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-white/70">Yield Rate:</span>
-                                <span className="text-green-400 font-medium">
-                                  +{yieldPercentage.toFixed(3)}%
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
 
-                        {/* Actions */}
-                        <div className="space-y-3">
-                          <Button
-                            onClick={handleUpdateYield}
-                            disabled={isUpdatingYield || isYieldLoading}
-                            className="w-full rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white border-0"
-                          >
-                            {isUpdatingYield ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Updating Yield...
-                              </>
-                            ) : (
-                              <>
-                                <TrendingUp className="h-4 w-4 mr-2" />
-                                Update Yield
-                              </>
-                            )}
-                          </Button>
-
-                          <Button
-                            onClick={refetchYield}
-                            variant="outline"
-                            className="w-full rounded-full border-white/20 text-white hover:bg-white/10 bg-transparent"
-                            disabled={isYieldLoading}
-                          >
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            Refresh Data
-                          </Button>
-                        </div>
 
                         {/* Time Simulation - Development Only */}
                         {isHardhatNetwork && (
@@ -1080,7 +1174,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                               <Clock className="h-4 w-4" />
                               Time Simulation (Dev Only)
                             </div>
-                            
+
                             <div className="space-y-2">
                               <div className="grid grid-cols-2 gap-2">
                                 <Button
@@ -1108,7 +1202,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                                   )}
                                 </Button>
                               </div>
-                              
+
                               <Button
                                 onClick={() => handleSimulateTime(30)}
                                 disabled={isSimulating || isUpdatingYield}
@@ -1147,7 +1241,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                                 )}
                               </Button>
                             </div>
-                            
+
                             <p className="text-orange-400/70 text-xs mt-2">
                               Development tools for testing pool lifecycle. Fast End Pool will jump to completion time.
                             </p>
@@ -1226,50 +1320,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                 </RevealOnView>
               )}
 
-              {/* Trigger Completion - For Active pools past duration (any user can trigger) */}
-              {poolDetails.state === PoolState.Active && timeLeft === "Pool ended!" && (
-                <RevealOnView delay={0.35}>
-                  <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-neutral-900/60 p-6">
-                    <div className="pointer-events-none absolute inset-0 opacity-5 mix-blend-soft-light">
-                      <DotGridShader />
-                    </div>
 
-                    <div className="relative z-10">
-                      <h3 className="text-lg font-semibold text-white mb-4">Pool Ready for Completion</h3>
-
-                      <div className="space-y-4">
-                        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-4">
-                          <div className="flex items-center gap-2 text-yellow-400 text-sm mb-2">
-                            <AlertTriangle className="h-4 w-4" />
-                            Duration Expired
-                          </div>
-                          <p className="text-white/70 text-sm">
-                            The pool duration has ended. Anyone can trigger completion to finalize the pool.
-                          </p>
-                        </div>
-
-                        <Button
-                          onClick={handleTriggerCompletionAction}
-                          disabled={isTriggeringCompletion}
-                          className="w-full rounded-full bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white border-0"
-                        >
-                          {isTriggeringCompletion ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Triggering Completion...
-                            </>
-                          ) : (
-                            <>
-                              <Zap className="h-4 w-4 mr-2" />
-                              Trigger Pool Completion
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </RevealOnView>
-              )}
 
               {/* Withdrawal Actions - For completed pools where user is a member */}
               {poolDetails.state === PoolState.Completed && poolDetails.isUserMember && (
@@ -1289,7 +1340,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                             <DollarSign className="h-4 w-4" />
                             Pool Completed Successfully
                           </div>
-                          
+
                           {withdrawalInfo && (
                             <div className="space-y-2 text-sm">
                               <div className="flex justify-between">
@@ -1316,7 +1367,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                           )}
                         </div>
 
-                        {poolDetails.userMembership?.hasWithdrawn ? (
+                        {poolDetails.members.find(member => member.member === account)?.hasWithdrawn ? (
                           <div className="bg-blue-500/10 border border-blue-500/30 rounded-2xl p-4 text-center">
                             <div className="flex items-center justify-center gap-2 text-blue-400 text-sm mb-2">
                               <Shield className="h-4 w-4" />
@@ -1351,71 +1402,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                 </RevealOnView>
               )}
 
-              {/* Final Pool State Display - For completed pools */}
-              {poolDetails.state === PoolState.Completed && (
-                <RevealOnView delay={0.45}>
-                  <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-neutral-900/60 p-6">
-                    <div className="pointer-events-none absolute inset-0 opacity-5 mix-blend-soft-light">
-                      <DotGridShader />
-                    </div>
-
-                    <div className="relative z-10">
-                      <h3 className="text-lg font-semibold text-white mb-4">Pool Summary</h3>
-
-                      <div className="space-y-4">
-                        <div className="bg-neutral-800/30 rounded-2xl p-4 border border-white/10">
-                          <div className="space-y-3">
-                            <div className="flex justify-between items-center">
-                              <span className="text-white/70">Total Members:</span>
-                              <span className="text-white font-medium">{Number(poolDetails.currentMembers)}</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-white/70">Total Principal:</span>
-                              <span className="text-white font-medium">{formatEther(poolDetails.totalContributions)} ETH</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-white/70">Total Yield Generated:</span>
-                              <span className="text-cyan-400 font-medium">{formatYield(currentYield)} ETH</span>
-                            </div>
-                            <div className="pt-2 border-t border-white/10">
-                              <div className="flex justify-between items-center">
-                                <span className="text-white font-medium">Final Pool Value:</span>
-                                <span className="text-green-400 font-bold text-lg">
-                                  {formatEther(poolDetails.totalContributions + currentYield)} ETH
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Member Withdrawal Status */}
-                        <div className="bg-neutral-800/30 rounded-2xl p-4 border border-white/10">
-                          <h4 className="text-sm font-medium text-white mb-3">Withdrawal Status</h4>
-                          <div className="space-y-2">
-                            {poolDetails.members.map((member, index) => (
-                              <div key={member.member} className="flex items-center justify-between text-sm">
-                                <span className="text-white/70 font-mono">
-                                  {member.member === account ? "You" : `Member ${index + 1}`}
-                                </span>
-                                <Badge
-                                  className={`text-xs ${
-                                    member.hasWithdrawn
-                                      ? "bg-green-500/20 text-green-400 border-green-500/30"
-                                      : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
-                                  }`}
-                                >
-                                  {member.hasWithdrawn ? "Withdrawn" : "Pending"}
-                                </Badge>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </RevealOnView>
-              )}
-
+           
               {/* Actions for members */}
               {poolDetails.isUserMember && poolDetails.state !== PoolState.Completed && (
                 <RevealOnView delay={0.4}>
@@ -1434,7 +1421,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                             You are a member of this pool
                           </div>
                           <p className="text-white/70 text-xs">
-                            Contributed: {formatEther(poolDetails.userMembership?.contributionAmount || 0n)} ETH
+                            Contributed: {formatEther(poolDetails.members.find(member => member.member === account)?.contributionAmount || 0n)} ETH
                           </p>
                         </div>
 
@@ -1442,7 +1429,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                         {(poolDetails.state === PoolState.Locked || poolDetails.state === PoolState.Active) && (
                           <div className="bg-neutral-800/30 rounded-2xl p-4 border border-white/10">
                             <h4 className="text-sm font-medium text-white mb-3">Your Yield Share</h4>
-                            
+
                             <div className="space-y-3">
                               <div className="flex justify-between items-center">
                                 <span className="text-white/70 text-sm">Total Pool Yield:</span>
@@ -1454,20 +1441,20 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                                   )}
                                 </span>
                               </div>
-                              
+
                               <div className="flex justify-between items-center">
                                 <span className="text-white/70 text-sm">Your Share:</span>
                                 <span className="text-purple-400 font-medium">
                                   {isYieldLoading ? (
                                     <Loader2 className="h-3 w-3 animate-spin" />
                                   ) : (
-                                    poolDetails.currentMembers > 0n ? 
+                                    poolDetails.currentMembers > 0n ?
                                       `${formatYield(currentYield / poolDetails.currentMembers)} ETH` :
                                       '0 ETH'
                                   )}
                                 </span>
                               </div>
-                              
+
                               <div className="pt-2 border-t border-white/10">
                                 <div className="flex justify-between items-center">
                                   <span className="text-white/70 text-sm">Expected Total:</span>
@@ -1475,9 +1462,9 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                                     {isYieldLoading ? (
                                       <Loader2 className="h-3 w-3 animate-spin" />
                                     ) : (
-                                      poolDetails.currentMembers > 0n ? 
-                                        `${formatEther((poolDetails.userMembership?.contributionAmount || 0n) + (currentYield / poolDetails.currentMembers))} ETH` :
-                                        formatEther(poolDetails.userMembership?.contributionAmount || 0n) + ' ETH'
+                                      poolDetails.currentMembers > 0n ?
+                                        `${formatEther((poolDetails.members.find(member => member.member === account)?.contributionAmount || 0n) + (currentYield / poolDetails.currentMembers))} ETH` :
+                                        formatEther(poolDetails.members.find(member => member.member === account)?.contributionAmount || 0n) + ' ETH'
                                     )}
                                   </span>
                                 </div>
@@ -1513,7 +1500,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
 
                     <div className="relative z-10">
                       <h3 className="text-lg font-semibold text-white mb-4">Join Pool</h3>
-                      
+
                       <div className="mb-4 p-4 bg-neutral-800/30 rounded-2xl border border-white/10">
                         <div className="text-center">
                           <p className="text-sm text-white/70 mb-1">Contribution Required</p>
@@ -1558,123 +1545,9 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                 </RevealOnView>
               )}
 
-              {/* Development Tools - For non-creators on hardhat network */}
-              {isHardhatNetwork && poolDetails.creator !== account && poolDetails.state !== PoolState.Completed && (
-                <RevealOnView delay={0.4}>
-                  <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-neutral-900/60 p-6">
-                    <div className="pointer-events-none absolute inset-0 opacity-5 mix-blend-soft-light">
-                      <DotGridShader />
-                    </div>
-
-                    <div className="relative z-10">
-                      <h3 className="text-lg font-semibold text-white mb-4">Development Tools</h3>
-                      
-                      <div className="bg-orange-500/10 border border-orange-500/30 rounded-2xl p-4">
-                        <div className="flex items-center gap-2 text-orange-400 text-sm mb-3">
-                          <Clock className="h-4 w-4" />
-                          Pool Time Controls (Dev Only)
-                        </div>
-                        
-                        <div className="space-y-3">
-                          <div className="grid grid-cols-2 gap-2">
-                            <Button
-                              onClick={() => handleSimulateTime(1)}
-                              disabled={isSimulating || isUpdatingYield}
-                              size="sm"
-                              className="rounded-full bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border-0 text-xs"
-                            >
-                              {isSimulating ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                "+1 Day"
-                              )}
-                            </Button>
-                            <Button
-                              onClick={() => handleSimulateTime(7)}
-                              disabled={isSimulating || isUpdatingYield}
-                              size="sm"
-                              className="rounded-full bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border-0 text-xs"
-                            >
-                              {isSimulating ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                "+1 Week"
-                              )}
-                            </Button>
-                          </div>
-                          
-                          <Button
-                            onClick={handleFastEndPool}
-                            disabled={isSimulating || isUpdatingYield || timeLeft === "Pool ended!"}
-                            size="sm"
-                            className="w-full rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-300 border-0 text-xs"
-                          >
-                            {isSimulating ? (
-                              <>
-                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                Fast Ending...
-                              </>
-                            ) : timeLeft === "Pool ended!" ? (
-                              "Pool Already Ended"
-                            ) : (
-                              <>
-                                <Zap className="h-3 w-3 mr-1" />
-                                Fast End Pool
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                        
-                        <p className="text-orange-400/70 text-xs mt-3">
-                          Development tools for testing pool lifecycle. Fast End Pool will jump to completion time.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </RevealOnView>
-              )}
 
               {/* Pool full or closed message */}
-              {poolDetails.state !== 0 && (
-                <RevealOnView delay={0.4}>
-                  <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-neutral-900/60 p-6">
-                    <div className="pointer-events-none absolute inset-0 opacity-5 mix-blend-soft-light">
-                      <DotGridShader />
-                    </div>
 
-                    <div className="relative z-10">
-                      <h3 className="text-lg font-semibold text-white mb-4">Pool Status</h3>
-                      
-                      <div className="text-center p-4 bg-neutral-800/30 rounded-2xl border border-white/10">
-                        <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-yellow-400" />
-                        <p className="text-white/70">
-                          {poolDetails.state === 3 
-                            ? "This pool has been completed"
-                            : Number(poolDetails.currentMembers) >= Number(poolDetails.maxMembers)
-                            ? "Pool is full"
-                            : poolDetails.state === 1 && "Pool is locked and generating yield"
-                          }
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </RevealOnView>
-              )}
-
-              {/* Lottery Integration Component */}
-              {poolId && poolId > 0n && (
-                <RevealOnView delay={0.5}>
-                  <LotteryIntegration
-                    poolAddress={params.id as `0x${string}`}
-                    poolId={poolId}
-                    poolName={poolDetails.name}
-                    isAdmin={account === poolDetails.creator} // For demo, creator has admin rights
-                    isCreator={account === poolDetails.creator}
-                    currentYield={currentYield}
-                    totalContributions={poolDetails.totalContributions}
-                  />
-                </RevealOnView>
-              )}
             </div>
           </div>
         </div>
@@ -1731,6 +1604,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                     {Math.floor(Number(poolDetails.duration) / (24 * 60 * 60))} days
                   </span>
                 </div>
+
               </div>
             </div>
 
@@ -1810,7 +1684,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-neutral-900 rounded-3xl border border-white/10 p-6 max-w-md w-full">
             <h3 className="text-xl font-semibold text-white mb-4">Leave Pool</h3>
-            
+
             <div className="bg-neutral-800/30 rounded-2xl p-4 border border-white/10 mb-4">
               <div className="text-sm text-white/70 mb-2">Pool Information:</div>
               <div className="space-y-1 text-sm">
@@ -1839,7 +1713,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                 <div className="text-red-400 text-sm">
                   <p className="font-medium mb-1">Warning</p>
                   <p className="text-red-400/80">
-                    Leaving this pool is permanent and may affect other members. 
+                    Leaving this pool is permanent and may affect other members.
                     You may lose your contribution depending on the pool state.
                   </p>
                 </div>
@@ -1985,7 +1859,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                   isWithdrawing ||
                   poolDetails.state !== PoolState.Completed ||
                   withdrawStatus === "success" ||
-                  poolDetails.userMembership?.hasWithdrawn
+                  poolDetails.members.find(member => member.member === account)?.hasWithdrawn
                 }
                 className="flex-1 rounded-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
               >
@@ -1996,7 +1870,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                   </>
                 ) : withdrawStatus === "success" ? (
                   "Success!"
-                ) : poolDetails.userMembership?.hasWithdrawn ? (
+                ) : poolDetails.members.find(member => member.member === account)?.hasWithdrawn ? (
                   "Already Withdrawn"
                 ) : (
                   "Withdraw Share"

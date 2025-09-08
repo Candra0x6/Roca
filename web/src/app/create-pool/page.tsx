@@ -164,7 +164,7 @@ export default function CreatePool() {
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <Link href="/dashboard">
+                  <Link href="/">
                     <Button className="rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0">
                       View My Pools
                     </Button>

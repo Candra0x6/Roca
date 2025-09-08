@@ -24,6 +24,9 @@ import AnimatedHeading from "@/components/animated-heading"
 import RevealOnView from "@/components/reveal-on-view"
 import WalletConnect from "@/components/wallet-connect"
 import { useNotificationHelpers } from "@/components/notifications/notification-helpers"
+import { useRouter } from "next/navigation"
+import { useWalletConnection } from "@/hooks"
+import Dashboard from "@/components/dashboard"
 
 interface Pool {
   id: string
@@ -45,8 +48,10 @@ interface WeeklyWinner {
 }
 
 export default function Page() {
-  
+  const router = useRouter()
   const { showSuccess } = useNotificationHelpers()
+  const { isConnected } = useWalletConnection()
+
 
     const features = [
       {
@@ -87,6 +92,12 @@ export default function Page() {
       },
     ]
 
+    if (isConnected) {
+      return (
+        <Dashboard />
+      )
+    }
+
     return (
       <main className="bg-neutral-950 text-white">
         <section className="mt-2 pb-16 lg:pb-4 max-w-5xl mx-auto">
@@ -104,9 +115,8 @@ export default function Page() {
 
                 <div>
                   <div className="mb-8 flex items-center gap-2">
-                    <div className="text-2xl font-extrabold tracking-tight">Decentralized</div>
-                    <div className="h-2 w-2 rounded-full bg-blue-500" aria-hidden="true" />
-                    <div className="text-2xl font-extrabold tracking-tight text-blue-400">Arisan</div>
+                    <div className="h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
+                    <div className="text-2xl font-extrabold tracking-tight text-primary">ROCA</div>
                   </div>
 
                   <AnimatedHeading
@@ -124,12 +134,8 @@ export default function Page() {
                   <div className="mt-10">
                     <p className="mb-3 text-xs font-semibold tracking-widest text-white/50">POWERED BY</p>
                     <ul className="grid grid-cols-2 gap-x-6 gap-y-3 text-2xl font-black text-white/25 sm:grid-cols-3">
-                      <li>Ethereum</li>
-                      <li>Polygon</li>
-                      <li>Arbitrum</li>
-                      <li>Base</li>
-                      <li>Optimism</li>
-                      <li>Avalanche</li>
+                      <li>Somnia</li>
+                     
                     </ul>
                   </div>
                 </div>
