@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt, useChainId } from 'wagmi'
 import { Address, formatEther } from 'viem'
 import { YIELD_MANAGER_ABI, getContractAddress } from '@/contracts/config'
@@ -54,7 +54,6 @@ export function usePoolYield(poolId: bigint): UsePoolYieldReturn {
     args: [poolId],
     query: {
       enabled: !!poolId && poolId > 0n,
-      refetchInterval: 10000, // Refetch every 10 seconds
     },
   })
 
@@ -70,7 +69,6 @@ export function usePoolYield(poolId: bigint): UsePoolYieldReturn {
     args: [poolId],
     query: {
       enabled: !!poolId && poolId > 0n,
-      refetchInterval: 10000,
     },
   })
 
@@ -86,7 +84,6 @@ export function usePoolYield(poolId: bigint): UsePoolYieldReturn {
     args: [poolId],
     query: {
       enabled: !!poolId && poolId > 0n,
-      refetchInterval: 10000,
     },
   })
 
@@ -111,7 +108,7 @@ export function usePoolYield(poolId: bigint): UsePoolYieldReturn {
       toast.error('Failed to update yield')
       throw error
     }
-  }, [poolId, writeContract, yieldManagerAddress])
+  }, [poolId, yieldManagerAddress, writeContract])
 
   // Format yield amount
   const formatYield = useCallback((amount: bigint): string => {
@@ -127,9 +124,9 @@ export function usePoolYield(poolId: bigint): UsePoolYieldReturn {
     
     if (depositsValue === 0n) return 0
     
-    const yieldAmount = Number(formatEther(yieldValue))
-    const principalAmount = Number(formatEther(depositsValue))
-    
+    const yieldAmount = Number(formatEther(yieldValue as bigint))
+    const principalAmount = Number(formatEther(depositsValue as bigint))
+
     return (yieldAmount / principalAmount) * 100
   }, [currentYield, deposits])
 
@@ -138,14 +135,18 @@ export function usePoolYield(poolId: bigint): UsePoolYieldReturn {
     refetchYield()
     refetchTotalValue()
     refetchDeposits()
-  }, [])
+  }, [refetchYield, refetchTotalValue, refetchDeposits])
 
   // Auto-refetch when update is successful
-  if (updateSuccess) {
-    setTimeout(() => {
-      refetch()
-    }, 2000)
-  }
+  useEffect(() => {
+    if (updateSuccess) {
+      const timer = setTimeout(() => {
+        refetch()
+      }, 2000)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [updateSuccess, refetch])
 
   const isLoading = isYieldLoading || isTotalValueLoading || isDepositsLoading
   const error = yieldError as Error | null
