@@ -72,7 +72,8 @@ describe("LotteryManager - Complete Flow Testing", function () {
     const PoolFactoryFactory = await hre.ethers.getContractFactory("PoolFactory");
     poolFactory = await PoolFactoryFactory.deploy(
       admin.address,
-      await badge.getAddress()
+      await badge.getAddress(),
+      await lotteryManager.getAddress()
     );
     await poolFactory.waitForDeployment();
     console.log("✅ Pool Factory deployed:", await poolFactory.getAddress());
@@ -80,7 +81,11 @@ describe("LotteryManager - Complete Flow Testing", function () {
     // Grant POOL_ROLE to pool factory for lottery integration
     const POOL_ROLE = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("POOL_ROLE"));
     await lotteryManager.connect(admin).grantRole(POOL_ROLE, await poolFactory.getAddress());
-    console.log("✅ Pool role granted to factory");
+    
+    // Grant role admin privileges to the PoolFactory so it can grant POOL_ROLE to individual pools
+    const DEFAULT_ADMIN_ROLE = "0x0000000000000000000000000000000000000000000000000000000000000000";
+    await lotteryManager.connect(admin).grantRole(DEFAULT_ADMIN_ROLE, await poolFactory.getAddress());
+    console.log("✅ Pool role and admin role granted to factory");
 
     // Grant necessary roles for badge minting
     const MINTER_ROLE = await badge.MINTER_ROLE();
@@ -224,32 +229,75 @@ describe("LotteryManager - Complete Flow Testing", function () {
     });
 
     it("should verify pool eligibility correctly", async function () {
-      // Initially, pool should not be eligible since no participants are registered in lottery yet
-      expect(await lotteryManager.isPoolEligible(1)).to.be.false;
-
-      // Manually add participants to lottery (simulating what happens when pool is locked)
-      const POOL_ROLE = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("POOL_ROLE"));
-      await lotteryManager.connect(admin).grantRole(POOL_ROLE, admin.address);
-      
-      const participants = [member1.address, member2.address, member3.address, member4.address, member5.address];
-      const weights = [1, 1, 1, 1, 1]; // Equal weights
-      
-      await lotteryManager.connect(admin).addParticipants(1, participants, weights);
-
-      // Now pool should be eligible (meets minimum of 5)
+      // Pool should be eligible since participants are automatically registered when pool locks
       expect(await lotteryManager.isPoolEligible(1)).to.be.true;
 
       console.log("✅ Pool eligibility calculation verified");
     });
 
     it("should handle participant management correctly", async function () {
-      // Check initial participant count
+      // Check participant count - participants are automatically added when pool locks
       const participants = await lotteryManager.getPoolParticipants(1);
       
-      // Participants are added when pool is locked, so initially should be empty
-      expect(participants.length).to.equal(0);
+      // Since the beforeEach fills the pool, participants should be automatically registered
+      expect(participants.length).to.equal(5);
 
       console.log("✅ Participant management verified");
+    });
+
+    it("should automatically register participants when pool locks", async function () {
+      // Advance time to bypass pool creation cooldown
+      await time.increase(3600); // Advance by 1 hour
+
+      // Create a fresh pool for this test
+      const freshPoolParams = {
+        name: "Fresh Lottery Pool",
+        contributionAmount: CONTRIBUTION_AMOUNT,
+        maxMembers: 5,
+        duration: POOL_DURATION,
+        yieldManager: await yieldManager.getAddress()
+      };
+
+      await poolFactory.connect(creator).createPool(freshPoolParams);
+      const allPools = await poolFactory.getAllPools();
+      const freshPoolAddress = allPools[allPools.length - 1]; // Get the last created pool
+      const freshPool = await hre.ethers.getContractAt("Pool", freshPoolAddress) as Pool;
+
+      console.log(`Fresh pool created at: ${freshPoolAddress}`);
+
+      // Check what pool ID the factory returns for this pool
+      const factoryPoolId = await poolFactory.getPoolId(freshPoolAddress);
+      console.log(`Factory returned pool ID: ${factoryPoolId}`);
+
+      // Fill the fresh pool - this should auto-lock and register participants
+      await freshPool.connect(member1).joinPool({ value: CONTRIBUTION_AMOUNT });
+      console.log("Member 1 joined");
+      
+      await freshPool.connect(member2).joinPool({ value: CONTRIBUTION_AMOUNT });
+      console.log("Member 2 joined");
+      
+      await freshPool.connect(member3).joinPool({ value: CONTRIBUTION_AMOUNT });
+      console.log("Member 3 joined");
+      
+      await freshPool.connect(member4).joinPool({ value: CONTRIBUTION_AMOUNT });
+      console.log("Member 4 joined");
+      
+      await freshPool.connect(member5).joinPool({ value: CONTRIBUTION_AMOUNT }); // This should trigger auto-lock
+      console.log("Member 5 joined - Pool should now be locked");
+
+      // Verify pool is locked
+      const poolInfo = await freshPool.getPoolInfo();
+      console.log(`Pool status: ${poolInfo.status}`);
+      expect(poolInfo.status).to.equal(2); // PoolStatus.Active
+
+      // Check participants
+      const participants = await lotteryManager.getPoolParticipants(factoryPoolId);
+      console.log(`Participants found: ${participants.length}`);
+      console.log(`Participants: ${participants.map(p => p.participantAddress)}`);
+      
+      expect(participants.length).to.equal(5);
+
+      console.log("✅ Automatic participant registration verified");
     });
   });
 
