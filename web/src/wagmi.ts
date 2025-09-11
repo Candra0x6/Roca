@@ -1,5 +1,5 @@
 import { cookieStorage, createConfig, createStorage, http } from 'wagmi'
-import { mainnet, sepolia } from 'wagmi/chains'
+import { mainnet, sepolia, hardhat } from 'wagmi/chains'
 import { injected, walletConnect, metaMask } from 'wagmi/connectors'
 
 // Define Somnia testnet chain
@@ -28,7 +28,7 @@ export function getConfig() {
   const projectId = process.env.NEXT_PUBLIC_WC_PROJECT_ID || '52752c5aca18cc94810cbad1984bc8a6'
   
   return createConfig({
-    chains: [somniaTestnet, sepolia, mainnet],
+    chains: [hardhat, somniaTestnet, sepolia, mainnet],
     connectors: [
       metaMask(),
       injected({ target: 'metaMask' }),
@@ -42,10 +42,11 @@ export function getConfig() {
     }),
     ssr: true,
     transports: {
+      [hardhat.id]: http('http://localhost:8545'),
       [somniaTestnet.id]: http('https://dream-rpc.somnia.network'),
       [sepolia.id]: http(),
       [mainnet.id]: http(),
-    },
+    },                                                                                                      
   })
 }
 

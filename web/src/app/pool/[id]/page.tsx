@@ -23,12 +23,12 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
     canJoin,
     canLeave,
     canWithdraw,
+    refetch: refetchPool,
     joinPool: handleJoinPool,
     leavePool: handleLeavePool,
     withdrawShare: handleWithdrawShare,
     completePool: handleCompletePool,
     triggerCompletion: handleTriggerCompletion,
-    refetch: refetchPool,
     isLoading: isPoolLoading,
     error: poolError,
   } = usePool(params.id as `0x${string}`)
@@ -219,6 +219,8 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
       await handleLeavePool()
       toast.success("Successfully left the pool!")
       setShowLeaveModal(false)
+      // Force a refetch after successful transaction
+      await refetchPool()
     } catch (error) {
       console.error("Leave pool failed:", error)
       const errorMessage = error instanceof Error ? error.message : "Transaction failed. Please try again."
@@ -260,31 +262,14 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
       await handleWithdrawShare()
 
       setWithdrawStatus("success")
-      
-      // Show detailed success message with withdrawal amounts
-      if (withdrawalInfo) {
-        const principalEth = formatEther(withdrawalInfo.principal)
-        const yieldEth = formatEther(withdrawalInfo.yieldShare)
-        const totalEth = formatEther(withdrawalInfo.totalAmount)
-        
-        toast.success(`Successfully withdrew ${totalEth} ETH! (${principalEth} ETH principal + ${yieldEth} ETH yield)`)
-      } else {
-        toast.success("Successfully withdrew your share!")
-      }
-
-      // Refresh pool data to update member status and pool state
-      await refetchPool()
-      
-      // Update yield data if available
-      if (poolId && poolId > 0n) {
-        await refetchYield()
-      }
+      toast.success("Successfully withdrew your share!")
 
       // Auto-close modal after success
       setTimeout(() => {
         setShowWithdrawModal(false)
         setWithdrawStatus("idle")
-      }, 2000)
+        refetchPool()
+      }, 1000)
     } catch (error) {
       console.error("Withdraw share failed:", error)
       setWithdrawStatus("error")
@@ -293,6 +278,8 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
       toast.error(errorMessage)
     } finally {
       setIsWithdrawing(false)
+              refetchPool()
+
     }
   }
 
@@ -318,12 +305,18 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
     try {
       await handleCompletePool()
       toast.success("Pool completed successfully!")
+       setTimeout(() => {
+        setShowWithdrawModal(false)
+        setWithdrawStatus("idle")
+      }, 2000)
     } catch (error) {
       console.error("Complete pool failed:", error)
       const errorMessage = error instanceof Error ? error.message : "Failed to complete pool. Please try again."
       toast.error(errorMessage)
     } finally {
       setIsCompleting(false)
+              refetchPool()
+
     }
   }
 
@@ -1813,10 +1806,9 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-white/70">Total Pool Value:</span>
-                  <span className="text-white">
+     <span className="text-white">
                     {formatEther(poolDetails.totalContributions + currentYield)} ETH
-                  </span>
-                </div>
+                  </span>                </div>
               </div>
             </div>
 

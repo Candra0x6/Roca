@@ -1,7 +1,7 @@
 import { useAccount, useBalance, useConnect, useDisconnect, useChainId, useSwitchChain } from 'wagmi'
 import { useCallback, useEffect, useState } from 'react'
 import { formatEther } from 'viem'
-import { sepolia, mainnet } from 'wagmi/chains'
+import { sepolia, mainnet, hardhat } from 'wagmi/chains'
 
 // Somnia testnet chain definition (matching wagmi.ts)
 const somniaTestnet = {
@@ -19,12 +19,22 @@ export function useWalletConnection() {
   const [connectionError, setConnectionError] = useState<string | null>(null)
   
   // Get balance for the connected account
-  const { data: balance, isLoading: isBalanceLoading } = useBalance({
+  const { data: balance, isLoading: isBalanceLoading, error: balanceError } = useBalance({
     address,
     query: {
       enabled: !!address,
     },
   })
+
+  // Debug balance loading
+  useEffect(() => {
+    if (address) {
+      console.log('Balance data:', balance)
+      console.log('Balance loading:', isBalanceLoading)
+      console.log('Balance error:', balanceError)
+      console.log('Chain ID:', chainId)
+    }
+  }, [address, balance, isBalanceLoading, balanceError, chainId])
 
   // Handle connection errors
   useEffect(() => {
@@ -74,13 +84,15 @@ export function useWalletConnection() {
   // Switch to a specific network
   const switchToNetwork = useCallback((targetChainId: number) => {
     if (switchChain) {
-      switchChain({ chainId: targetChainId as 1 | 50312 | 11155111 })
+      switchChain({ chainId: targetChainId as 1 | 31337 | 50312 | 11155111 })
     }
   }, [switchChain])
 
   // Get chain information
   const getChainInfo = useCallback(() => {
     switch (chainId) {
+      case hardhat.id:
+        return { name: 'Hardhat Local', shortName: 'Hardhat', color: '#f59e0b' }
       case somniaTestnet.id:
         return { name: 'Somnia Testnet', shortName: 'Somnia', color: '#8b5cf6' }
       case sepolia.id:

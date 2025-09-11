@@ -323,7 +323,7 @@ export default function JoinGroup() {
                     <div className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-semibold mt-0.5">
                       3
                     </div>
-                    <p>Click "View Pool" to see full details and join</p>
+                    <p>Click &quot;View Pool&quot; to see full details and join</p>
                   </div>
                   <div className="flex items-start gap-3">
                     <div className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-semibold mt-0.5">

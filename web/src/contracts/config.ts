@@ -39,7 +39,7 @@ export const CONTRACT_ADDRESSES = {
     lotteryManager: '0x' as Address,
     yieldManager: '0xC535a29eee933244e71Faf4ca82D9bF746EBa2Ee' as Address, // YieldManager
     rewardNFT: '0x' as Address,
-  },
+    },
 } as const
 
 // Contract ABIs
