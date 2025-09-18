@@ -82,3 +82,6 @@ The implementation meets all acceptance criteria:
 - [x] Depends on FE-002 (contract bindings) and SC-001 (PoolFactory)
 
 The pool creation form is production-ready and can successfully interact with the deployed smart contracts once wallet providers are configured.
+
+0xC535a29eee933244e71Faf4ca82D9bF746EBa2Ee  (yieldmanager)
+0x92E41BCf5415Ea1e47f25691620a3F5B964abEFF (poolfactory)
