@@ -1,5 +1,7 @@
 # 🌐 Roca – Decentralized Social Savings Platform  
 
+<img width="500" height="500" alt="ROCA1" src="https://github.com/user-attachments/assets/3c806538-ab62-4382-9cc4-65576d0e5a90" />
+
 Roca is a decentralized social savings platform that reimagines the traditional **Arisan** (also known globally as **ROSCA – Rotating Savings and Credit Association**) by combining the power of community savings culture with **DeFi yield generation** and **gamified engagement**.  
 
 ---
