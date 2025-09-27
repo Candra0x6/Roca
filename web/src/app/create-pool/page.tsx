@@ -15,7 +15,6 @@ import AnimatedHeading from "@/components/animated-heading"
 import RevealOnView from "@/components/reveal-on-view"
 import { useCreatePool } from "@/hooks/usePoolFactory"
 import { useNativeToken } from "@/hooks/useNativeToken"
-import { useWalletConnection } from "@/hooks/useWalletConnection"
 
 interface CreatePoolForm {
   poolName: string
@@ -26,8 +25,7 @@ interface CreatePoolForm {
 
 export default function CreatePool() {
   const { address: userAddress, isConnected } = useAccount()
- const { chainInfo } = useWalletConnection()
-    const nativeTokenSymbol = chainInfo?.nativeCurrency.symbol || "ETH"
+    const { symbol: nativeTokenSymbol } = useNativeToken()
   const { data: ethBalance } = useBalance({
     address: userAddress,
   })

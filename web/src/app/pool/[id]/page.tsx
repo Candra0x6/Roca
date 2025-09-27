@@ -11,15 +11,15 @@ import { Badge } from "@/components/ui/badge"
 import DotGridShader from "@/components/DotGridShader"
 import AnimatedHeading from "@/components/animated-heading"
 import RevealOnView from "@/components/reveal-on-view"
-import { usePool, usePoolId, usePoolYield, useTimeSimulation, useWithdrawalInfo, useLotteryParticipants, usePoolLotteryEligibility, useWalletConnection } from "@/hooks"
+import { usePool, usePoolId, usePoolYield, useTimeSimulation, useWithdrawalInfo, useLotteryParticipants, usePoolLotteryEligibility } from "@/hooks"
 import { useAccount } from "wagmi"
 import { PoolState } from "@/contracts/types"
 import { useNativeToken } from "@/hooks/useNativeToken"
 
 export default function PoolDetail({ params }: { params: { id: string } }) {
   const { address: account, isConnected } = useAccount()
- const { chainInfo } = useWalletConnection()
-    const nativeTokenSymbol = chainInfo?.nativeCurrency.symbol || "ETH"
+  const { symbol: nativeTokenSymbol } = useNativeToken()
+
   const {
     poolInfo: poolDetails,
     canJoin,

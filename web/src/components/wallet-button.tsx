@@ -42,7 +42,8 @@ export default function WalletButton({ onConnectionChange }: WalletButtonProps) 
     error,
   } = useWalletConnection()
   
-    const nativeTokenSymbol = chainInfo?.nativeCurrency.symbol || "ETH"
+  const { symbol: nativeTokenSymbol } = useNativeToken()
+
   // Notify parent component of connection changes
   React.useEffect(() => {
     onConnectionChange?.(isConnected, address)

@@ -27,9 +27,8 @@ import { PoolState } from "@/contracts/types"
 import { useNativeToken } from "@/hooks/useNativeToken"
 
 export default function Dashboard() {
-
-  const { disconnect, chainInfo } = useWalletConnection()
-    const nativeTokenSymbol = chainInfo?.nativeCurrency.symbol || "ETH"
+    const { symbol: nativeTokenSymbol } = useNativeToken()
+  const { disconnect } = useWalletConnection()
   const {
     userAddress,
     isConnected,

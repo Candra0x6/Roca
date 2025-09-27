@@ -20,8 +20,8 @@ import { usePoolInfo } from "@/hooks/usePool"
 import { useNativeToken } from "@/hooks/useNativeToken"
 
 export default function JoinGroup() {
+    const { symbol: nativeTokenSymbol } = useNativeToken()
     const { chainInfo } = useWalletConnection()
-    const nativeTokenSymbol = chainInfo?.nativeCurrency.symbol || "ETH"
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedFilter, setSelectedFilter] = useState("all")
