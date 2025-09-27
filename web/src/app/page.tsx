@@ -135,7 +135,8 @@ export default function Page() {
                     <p className="mb-3 text-xs font-semibold tracking-widest text-white/50">POWERED BY</p>
                     <ul className="grid grid-cols-2 gap-x-6 gap-y-3 text-2xl font-black text-white/25 sm:grid-cols-3">
                       <li>Somnia</li>
-                     
+                      <li>ZetaChain</li>
+
                     </ul>
                   </div>
                 </div>
