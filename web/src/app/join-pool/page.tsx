@@ -15,10 +15,13 @@ import AnimatedHeading from "@/components/animated-heading"
 import RevealOnView from "@/components/reveal-on-view"
 import { usePoolDiscovery, usePoolFilters, PoolListItem } from "@/hooks/usePoolDiscovery"
 import { PoolState } from "@/contracts/types"
-import { usePool } from "@/hooks"
+import { usePool, useWalletConnection } from "@/hooks"
 import { usePoolInfo } from "@/hooks/usePool"
+import { useNativeToken } from "@/hooks/useNativeToken"
 
 export default function JoinGroup() {
+    const { chainInfo } = useWalletConnection()
+    const nativeTokenSymbol = chainInfo?.nativeCurrency.symbol || "ETH"
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedFilter, setSelectedFilter] = useState("all")
@@ -236,7 +239,7 @@ export default function JoinGroup() {
                               <span className="text-sm text-white/70">Contribution</span>
                             </div>
                             <p className="text-lg font-semibold text-white">
-                              {formatEther(pool.contributionAmount)} ETH
+                              {formatEther(pool.contributionAmount)} {nativeTokenSymbol}
                             </p>
                           </div>
 
@@ -267,7 +270,7 @@ export default function JoinGroup() {
                               <span className="text-sm text-white/70">Yield</span>
                             </div>
                             <p className="text-lg font-semibold text-white">
-                              {formatEther(pool.yieldGenerated)} ETH
+                              {formatEther(pool.yieldGenerated)} {nativeTokenSymbol}
                             </p>
                           </div>
                         </div>

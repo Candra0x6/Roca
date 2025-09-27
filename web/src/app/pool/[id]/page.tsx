@@ -11,13 +11,15 @@ import { Badge } from "@/components/ui/badge"
 import DotGridShader from "@/components/DotGridShader"
 import AnimatedHeading from "@/components/animated-heading"
 import RevealOnView from "@/components/reveal-on-view"
-import { usePool, usePoolId, usePoolYield, useTimeSimulation, useWithdrawalInfo, useLotteryParticipants, usePoolLotteryEligibility } from "@/hooks"
+import { usePool, usePoolId, usePoolYield, useTimeSimulation, useWithdrawalInfo, useLotteryParticipants, usePoolLotteryEligibility, useWalletConnection } from "@/hooks"
 import { useAccount } from "wagmi"
 import { PoolState } from "@/contracts/types"
+import { useNativeToken } from "@/hooks/useNativeToken"
 
 export default function PoolDetail({ params }: { params: { id: string } }) {
   const { address: account, isConnected } = useAccount()
-
+ const { chainInfo } = useWalletConnection()
+    const nativeTokenSymbol = chainInfo?.nativeCurrency.symbol || "ETH"
   const {
     poolInfo: poolDetails,
     canJoin,
@@ -430,9 +432,9 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
       })
 
       const balanceInEth = formatEther(BigInt(balance))
-      console.log(`Contract ${contractAddress} balance:`, balanceInEth, "ETH")
+      console.log(`Contract ${contractAddress} balance:`, balanceInEth, { nativeTokenSymbol})
 
-      toast.info(`Contract balance: ${balanceInEth} ETH`)
+      toast.info(`Contract balance: ${balanceInEth} ${nativeTokenSymbol}`)
 
       return {
         address: contractAddress,
@@ -510,7 +512,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
         console.log("Available:", balanceInEth, "ETH")
         console.log("Shortfall:", formatEther(withdrawalInfo.totalAmount - BigInt(balance)), "ETH")
 
-        toast.error(`Contract balance (${balanceInEth} ETH) is less than withdrawal amount (${formatEther(withdrawalInfo.totalAmount)} ETH)`)
+        toast.error(`Contract balance (${balanceInEth} ${nativeTokenSymbol}) is less than withdrawal amount (${formatEther(withdrawalInfo.totalAmount)} ${nativeTokenSymbol})`)
 
         console.log("💡 FIXES TO TRY:")
         console.log("1. Click 'Update Yield & Transfer Funds' to transfer funds back from yield manager")
@@ -624,7 +626,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
               <div className="flex flex-wrap gap-4 text-sm text-white/70">
                 <div className="flex items-center gap-1">
                   <DollarSign className="h-4 w-4" />
-                  {formatEther(poolDetails.contributionAmount)} ETH per member
+                  {formatEther(poolDetails.contributionAmount)} {nativeTokenSymbol} per member
                 </div>
                 <div className="flex items-center gap-1">
                   <Users className="h-4 w-4" />
@@ -678,7 +680,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                           <p className="text-2xl font-bold text-white">
                             {formatEther(poolDetails.totalContributions || 0n)}
                           </p>
-                          <p className="text-sm text-white/70">Total Pool (ETH)</p>
+                          <p className="text-sm text-white/70">Total Pool ({nativeTokenSymbol})</p>
                         </div>
                         <div>
                           <p className="text-2xl font-bold text-green-400">
@@ -725,7 +727,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                                     {isYieldLoading ? (
                                       <Loader2 className="h-4 w-4 animate-spin" />
                                     ) : (
-                                      `${formatYield(currentYield)} ETH`
+                                      `${formatYield(currentYield)} ${nativeTokenSymbol}`
                                     )}
                                   </p>
                                 </div>
@@ -743,7 +745,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                                     {isYieldLoading ? (
                                       <Loader2 className="h-4 w-4 animate-spin" />
                                     ) : (
-                                      `${formatYield(totalValue)} ETH`
+                                      `${formatYield(totalValue)} ${nativeTokenSymbol}`
                                     )}
                                   </p>
                                 </div>
@@ -760,7 +762,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                                 <div className="flex justify-between text-xs text-white/60 mb-2">
                                   <span>Yield Progress</span>
                                   <span>
-                                    {formatYield(currentYield)} / {formatYield(deposits)} ETH
+                                    {formatYield(currentYield)} / {formatYield(deposits)} {nativeTokenSymbol}
                                   </span>
                                 </div>
                                 <div className="w-full bg-neutral-700 rounded-full h-2">
@@ -781,7 +783,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                           <div className="grid grid-cols-2 gap-4 text-center">
                             <div>
                               <p className="text-lg font-semibold text-cyan-400">
-                                {formatEther(poolDetails.yieldGenerated || (withdrawalInfo?.yieldShare ? withdrawalInfo.yieldShare * poolDetails.currentMembers : 0n))} ETH
+                                {formatEther(poolDetails.yieldGenerated || (withdrawalInfo?.yieldShare ? withdrawalInfo.yieldShare * poolDetails.currentMembers : 0n))} {nativeTokenSymbol}
                               </p>
                               <p className="text-xs text-white/60">Total Yield Earned</p>
                             </div>
@@ -876,7 +878,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                                   )}
                                 </div>
                                 <p className="text-sm text-white/50">
-                                  Joined: {joinedDate.toLocaleDateString()} • {formatEther(member.contributionAmount)} ETH
+                                  Joined: {joinedDate.toLocaleDateString()} • {formatEther(member.contributionAmount)} {nativeTokenSymbol}
                                 </p>
                               </div>
                             </div>
@@ -953,17 +955,17 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-white/70">Total Principal:</span>
-                              <span className="text-white font-medium">{formatEther(poolDetails.totalContributions)} ETH</span>
+                              <span className="text-white font-medium">{formatEther(poolDetails.totalContributions)} {nativeTokenSymbol}</span>
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-white/70">Total Yield Generated:</span>
-                              <span className="text-cyan-400 font-medium">{formatEther(poolDetails.yieldGenerated || (withdrawalInfo?.yieldShare ? withdrawalInfo.yieldShare * poolDetails.currentMembers : 0n))} ETH</span>
+                              <span className="text-cyan-400 font-medium">{formatEther(poolDetails.yieldGenerated || (withdrawalInfo?.yieldShare ? withdrawalInfo.yieldShare * poolDetails.currentMembers : 0n))} {nativeTokenSymbol}</span>
                             </div>
                             <div className="pt-2 border-t border-white/10">
                               <div className="flex justify-between items-center">
                                 <span className="text-white font-medium">Final Pool Value:</span>
                                 <span className="text-green-400 font-bold text-lg">
-                                  {formatEther(poolDetails.totalContributions + (withdrawalInfo?.yieldShare ? withdrawalInfo.yieldShare * poolDetails.currentMembers : 0n))} ETH
+                                  {formatEther(poolDetails.totalContributions + (withdrawalInfo?.yieldShare ? withdrawalInfo.yieldShare * poolDetails.currentMembers : 0n))} {nativeTokenSymbol}
                                 </span>
                               </div>
                             </div>
@@ -1225,20 +1227,20 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                               <div className="flex justify-between">
                                 <span className="text-white/70">Your Principal:</span>
                                 <span className="text-white font-medium">
-                                  {formatEther(withdrawalInfo.principal)} ETH
+                                  {formatEther(withdrawalInfo.principal)} {nativeTokenSymbol}
                                 </span>
                               </div>
                               <div className="flex justify-between">
                                 <span className="text-white/70">Your Yield Share:</span>
                                 <span className="text-cyan-400 font-medium">
-                                  {formatEther(withdrawalInfo.yieldShare)} ETH
+                                  {formatEther(withdrawalInfo.yieldShare)} {nativeTokenSymbol}
                                 </span>
                               </div>
                               <div className="pt-2 border-t border-green-500/30">
                                 <div className="flex justify-between">
                                   <span className="text-white font-medium">Total Withdrawal:</span>
                                   <span className="text-green-400 font-bold text-lg">
-                                    {formatEther(withdrawalInfo.totalAmount)} ETH
+                                    {formatEther(withdrawalInfo.totalAmount)} {nativeTokenSymbol}
                                   </span>
                                 </div>
                               </div>
@@ -1300,7 +1302,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                             You are a member of this pool
                           </div>
                           <p className="text-white/70 text-xs">
-                            Contributed: {formatEther(poolDetails.members.find(member => member.member === account)?.contributionAmount || 0n)} ETH
+                            Contributed: {formatEther(poolDetails.members.find(member => member.member === account)?.contributionAmount || 0n)} {nativeTokenSymbol}
                           </p>
                         </div>
 
@@ -1316,7 +1318,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                                   {isYieldLoading ? (
                                     <Loader2 className="h-3 w-3 animate-spin" />
                                   ) : (
-                                    `${formatYield(currentYield)} ETH`
+                                    `${formatYield(currentYield)} ${nativeTokenSymbol}`
                                   )}
                                 </span>
                               </div>
@@ -1328,8 +1330,8 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                                     <Loader2 className="h-3 w-3 animate-spin" />
                                   ) : (
                                     poolDetails.currentMembers > 0n ?
-                                      `${formatYield(currentYield / poolDetails.currentMembers)} ETH` :
-                                      '0 ETH'
+                                      `${formatYield(currentYield / poolDetails.currentMembers)} ${nativeTokenSymbol}` :
+                                      `0 ${nativeTokenSymbol}`
                                   )}
                                 </span>
                               </div>
@@ -1342,8 +1344,8 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                                       <Loader2 className="h-3 w-3 animate-spin" />
                                     ) : (
                                       poolDetails.currentMembers > 0n ?
-                                        `${formatEther((poolDetails.members.find(member => member.member === account)?.contributionAmount || 0n) + (currentYield / poolDetails.currentMembers))} ETH` :
-                                        formatEther(poolDetails.members.find(member => member.member === account)?.contributionAmount || 0n) + ' ETH'
+                                        `${formatEther((poolDetails.members.find(member => member.member === account)?.contributionAmount || 0n) + (currentYield / poolDetails.currentMembers))} ${nativeTokenSymbol}` :
+                                        formatEther(poolDetails.members.find(member => member.member === account)?.contributionAmount || 0n) + ` ${nativeTokenSymbol}`
                                     )}
                                   </span>
                                 </div>
@@ -1384,7 +1386,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                         <div className="text-center">
                           <p className="text-sm text-white/70 mb-1">Contribution Required</p>
                           <p className="text-xl font-bold text-white">
-                            {formatEther(poolDetails.contributionAmount)} ETH
+                            {formatEther(poolDetails.contributionAmount)} {nativeTokenSymbol}
                           </p>
                           <p className="text-xs text-white/50 mt-1">
                             {Number(poolDetails.currentMembers)}/{Number(poolDetails.maxMembers)} members
@@ -1396,10 +1398,10 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                           <div className="mt-3 pt-3 border-t border-white/10">
                             <div className="text-center">
                               <p className="text-sm text-cyan-400 font-medium">
-                                Current Pool Yield: {formatYield(currentYield)} ETH
+                                Current Pool Yield: {formatYield(currentYield)} {nativeTokenSymbol}
                               </p>
                               <p className="text-xs text-white/60 mt-1">
-                                Your potential share: ~{poolDetails.maxMembers > 0n ? formatYield(currentYield / poolDetails.maxMembers) : '0'} ETH
+                                Your potential share: ~{poolDetails.maxMembers > 0n ? formatYield(currentYield / poolDetails.maxMembers) : '0'} {nativeTokenSymbol}
                               </p>
                               {yieldPercentage > 0 && (
                                 <p className="text-xs text-green-400 mt-1">
@@ -1454,7 +1456,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
               <div className="text-center">
                 <p className="text-sm text-white/70 mb-1">Required Contribution</p>
                 <p className="text-2xl font-bold text-white">
-                  {formatEther(poolDetails.contributionAmount)} ETH
+                  {formatEther(poolDetails.contributionAmount)} {nativeTokenSymbol}
                 </p>
                 <p className="text-xs text-white/50 mt-1">
                   Pool: {poolDetails.name}
@@ -1552,7 +1554,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
 
             {/* Transaction Info */}
             <p className="text-xs text-white/50 text-center mt-4">
-              This will trigger a wallet transaction. Make sure you have enough ETH for gas fees.
+              This will trigger a wallet transaction. Make sure you have enough {nativeTokenSymbol} for gas fees.
             </p>
           </div>
         </div>
@@ -1574,7 +1576,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                 <div className="flex justify-between">
                   <span className="text-white/60">Your Contribution:</span>
                   <span className="text-white">
-                    {formatEther(poolDetails.userMembership?.contributionAmount || 0n)} ETH
+                    {formatEther(poolDetails.userMembership?.contributionAmount || 0n)} {nativeTokenSymbol}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -1654,20 +1656,20 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                       <div className="flex justify-between text-sm">
                         <span className="text-white/70">Your Principal:</span>
                         <span className="text-white font-medium">
-                          {formatEther(withdrawalInfo.principal)} ETH
+                          {formatEther(withdrawalInfo.principal)} {nativeTokenSymbol}
                         </span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-white/70">Your Yield Share:</span>
                         <span className="text-cyan-400 font-medium">
-                          {formatEther(withdrawalInfo.yieldShare)} ETH
+                          {formatEther(withdrawalInfo.yieldShare)} {nativeTokenSymbol}
                         </span>
                       </div>
                       <div className="pt-2 border-t border-white/10">
                         <div className="flex justify-between">
                           <span className="text-white font-medium">Total Withdrawal:</span>
                           <span className="text-green-400 font-bold text-xl">
-                            {formatEther(withdrawalInfo.totalAmount)} ETH
+                            {formatEther(withdrawalInfo.totalAmount)} {nativeTokenSymbol}
                           </span>
                         </div>
                       </div>
@@ -1693,7 +1695,7 @@ export default function PoolDetail({ params }: { params: { id: string } }) {
                 <div className="flex justify-between">
                   <span className="text-white/70">Total Pool Value:</span>
      <span className="text-white">
-                    {formatEther(poolDetails.totalContributions + currentYield)} ETH
+                    {formatEther(poolDetails.totalContributions + currentYield)} {nativeTokenSymbol}
                   </span>                </div>
               </div>
             </div>

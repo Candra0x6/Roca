@@ -14,6 +14,8 @@ import DotGridShader from "@/components/DotGridShader"
 import AnimatedHeading from "@/components/animated-heading"
 import RevealOnView from "@/components/reveal-on-view"
 import { useCreatePool } from "@/hooks/usePoolFactory"
+import { useNativeToken } from "@/hooks/useNativeToken"
+import { useWalletConnection } from "@/hooks/useWalletConnection"
 
 interface CreatePoolForm {
   poolName: string
@@ -24,6 +26,8 @@ interface CreatePoolForm {
 
 export default function CreatePool() {
   const { address: userAddress, isConnected } = useAccount()
+ const { chainInfo } = useWalletConnection()
+    const nativeTokenSymbol = chainInfo?.nativeCurrency.symbol || "ETH"
   const { data: ethBalance } = useBalance({
     address: userAddress,
   })
@@ -59,9 +63,9 @@ export default function CreatePool() {
     if (!formData.contributionAmount || Number.parseFloat(formData.contributionAmount) <= 0) {
       newErrors.contributionAmount = "Valid contribution amount is required"
     } else if (Number.parseFloat(formData.contributionAmount) < 0.01) {
-      newErrors.contributionAmount = "Minimum contribution is 0.01 ETH"
+      newErrors.contributionAmount = `Minimum contribution is 0.01 ${nativeTokenSymbol}`
     } else if (Number.parseFloat(formData.contributionAmount) > 100) {
-      newErrors.contributionAmount = "Maximum contribution is 100 ETH"
+      newErrors.contributionAmount = `Maximum contribution is 100 ${nativeTokenSymbol}`
     }
 
     if (!formData.poolSize || Number.parseInt(formData.poolSize) < 2 || Number.parseInt(formData.poolSize) > 100) {
@@ -283,12 +287,12 @@ export default function CreatePool() {
                         <span className="text-white">ETH</span>
                         {ethBalance && (
                           <span className="text-white/70 text-sm">
-                            Balance: {Number(formatEther(ethBalance.value)).toFixed(4)} ETH
+                            Balance: {Number(formatEther(ethBalance.value)).toFixed(4)} {nativeTokenSymbol}
                           </span>
                         )}
                       </div>
                     </div>
-                    <p className="text-xs text-white/50">Pool contributions are in ETH</p>
+                    <p className="text-xs text-white/50">Pool contributions are in {nativeTokenSymbol}</p>
                   </div>
                 </div>
 
@@ -364,7 +368,7 @@ export default function CreatePool() {
                         {(Number.parseFloat(formData.contributionAmount) * Number.parseInt(formData.poolSize)).toFixed(
                           4,
                         )}{" "}
-                        ETH
+                        {nativeTokenSymbol}
                       </p>
                       <p>• Duration: {formData.duration.replace("-", " ").replace("days", " days")}</p>
                       <p>• Expected APY: ~5% (via yield staking)</p>

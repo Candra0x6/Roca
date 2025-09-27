@@ -123,7 +123,7 @@ export default function WalletConnect({ onConnectionChange }: WalletConnectProps
         {/* Balance and Actions */}
         <div className="flex items-center justify-between text-sm">
           <span className="text-white/70">
-            Balance: {isBalanceLoading ? "..." : `${parseFloat(balance).toFixed(4)} ETH`}
+            Balance: {isBalanceLoading ? "..." : `${parseFloat(balance).toFixed(4)} ${chainInfo.nativeCurrency.symbol}`}
           </span>
           <div className="flex gap-2">
             <Button

@@ -24,9 +24,12 @@ import RevealOnView from "@/components/reveal-on-view"
 import { useDashboard } from "@/hooks/useDashboard"
 import { useWalletConnection } from "@/hooks/useWalletConnection"
 import { PoolState } from "@/contracts/types"
+import { useNativeToken } from "@/hooks/useNativeToken"
 
 export default function Dashboard() {
-  const { disconnect } = useWalletConnection()
+
+  const { disconnect, chainInfo } = useWalletConnection()
+    const nativeTokenSymbol = chainInfo?.nativeCurrency.symbol || "ETH"
   const {
     userAddress,
     isConnected,
@@ -182,7 +185,7 @@ export default function Dashboard() {
                     <DollarSign className="h-5 w-5 text-green-400" />
                     <h3 className="font-semibold text-white/80">Total Contributed</h3>
                   </div>
-                  <div className="text-2xl font-bold text-green-400">{formatEther(stats?.totalContributions || 0n)} ETH</div>
+                  <div className="text-2xl font-bold text-green-400">{formatEther(stats?.totalContributions || 0n)} {nativeTokenSymbol}</div>
                   <div className="text-sm text-white/50 mt-1">Across all pools</div>
                 </div>
               </div>
@@ -198,7 +201,7 @@ export default function Dashboard() {
                     <CheckCircle className="h-5 w-5 text-purple-400" />
                     <h3 className="font-semibold text-white/80">Yield Earned</h3>
                   </div>
-                  <div className="text-2xl font-bold text-purple-400">{formatEther(stats?.totalYieldEarned || 0n)} ETH</div>
+                  <div className="text-2xl font-bold text-purple-400">{formatEther(stats?.totalYieldEarned || 0n)} {nativeTokenSymbol}</div>
                   <div className="text-sm text-white/50 mt-1">Total rewards</div>
                 </div>
               </div>
@@ -282,7 +285,7 @@ export default function Dashboard() {
                         <div className="flex items-center gap-2 text-white/70">
                           <DollarSign className="h-4 w-4" />
                           <span className="text-sm">
-                            {formatEther(pool.contributionAmount)} ETH contribution
+                            {formatEther(pool.contributionAmount)} {nativeTokenSymbol} contribution
                           </span>
                         </div>
 
@@ -304,7 +307,7 @@ export default function Dashboard() {
                           <div className="flex items-center gap-2 text-white/70">
                             <CheckCircle className="h-4 w-4" />
                             <span className="text-sm">
-                              Yield: {formatEther(pool.yieldEarned)} ETH
+                              Yield: {formatEther(pool.yieldEarned)} {nativeTokenSymbol}
                             </span>
                           </div>
                         )}

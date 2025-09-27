@@ -21,6 +21,7 @@ import {
 import { useWalletConnection } from "@/hooks/useWalletConnection"
 import { toast } from "sonner"
 import { hardhat, sepolia, mainnet } from 'wagmi/chains'
+import { useNativeToken } from '@/hooks/useNativeToken'
 
 interface WalletButtonProps {
   onConnectionChange?: (connected: boolean, address?: string) => void
@@ -40,7 +41,8 @@ export default function WalletButton({ onConnectionChange }: WalletButtonProps) 
     formatAddress,
     error,
   } = useWalletConnection()
-
+  
+    const nativeTokenSymbol = chainInfo?.nativeCurrency.symbol || "ETH"
   // Notify parent component of connection changes
   React.useEffect(() => {
     onConnectionChange?.(isConnected, address)
@@ -124,7 +126,7 @@ export default function WalletButton({ onConnectionChange }: WalletButtonProps) 
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-muted-foreground">Balance</span>
               <span className="text-sm font-mono">
-                {isBalanceLoading ? "..." : `${parseFloat(balance).toFixed(4)} ETH`}
+                {isBalanceLoading ? "..." : `${parseFloat(balance).toFixed(4)} ${nativeTokenSymbol}`}
               </span>
             </div>
             <div className="flex items-center justify-between">
