@@ -1,0 +1,18 @@
+{
+  "timestamp": "2025-09-27T04:40:14.620Z",
+  "network": "zetachain",
+  "chainId": "7001",
+  "deployer": "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
+  "contracts": {
+    "YieldManager": {
+      "address": "0x9DdA81Aa5FeB4a4972b62265C43dee305B360372",
+      "transactionHash": "",
+      "blockNumber": 12971506
+    },
+    "PoolFactory": {
+      "address": "0x8Cf8C79D4D367e55114c72D31726d7670ed13E40",
+      "transactionHash": "",
+      "blockNumber": 12971506
+    }
+  }
+}

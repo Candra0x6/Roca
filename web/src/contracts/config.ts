@@ -40,6 +40,15 @@ export const CONTRACT_ADDRESSES = {
     yieldManager: '0xC535a29eee933244e71Faf4ca82D9bF746EBa2Ee' as Address, // YieldManager
     rewardNFT: '0x' as Address,
     },
+
+  // ZetaChain Athens 3 testnet addresses (to be filled after deployment)
+  7001: {
+    poolFactory: '0x3FF7573961a252b652d32B3910D3B2b90D8A3Bd8' as Address,
+    badge: '0x' as Address, // RewardNFT serving as badge
+    lotteryManager: '0x' as Address,
+    yieldManager: '0x356Be1db672aFEC735B4b757f9781D40b1dE4f06' as Address, // YieldManager
+    rewardNFT: '0x' as Address,
+  },
 } as const
 
 // Contract ABIs

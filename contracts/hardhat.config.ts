@@ -48,12 +48,20 @@ const config: HardhatUserConfig = {
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       chainId: 50312, // Somnia testnet chain ID
     },
+    zetachain: {
+      url: process.env.ZETACHAIN_RPC_URL || "https://zetachain-athens-evm.blockpi.network/v1/rpc/public",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      chainId: 7001, // ZetaChain Athens 3 testnet chain ID
+      gas: 2100000,
+      gasPrice: 8000000000,
+    },
   },
   etherscan: {
     apiKey: {
       mainnet: process.env.ETHERSCAN_API_KEY || "",
       sepolia: process.env.ETHERSCAN_API_KEY || "",
       somnia: process.env.SOMNIA_API_KEY || "dummy-api-key", // Somnia explorer API key
+      zetachain: process.env.ZETACHAIN_API_KEY || "dummy-api-key", // ZetaChain explorer API key
     },
     customChains: [
       {
@@ -62,6 +70,14 @@ const config: HardhatUserConfig = {
         urls: {
           apiURL: process.env.SOMNIA_EXPLORER_API_URL || "https://shannon-explorer.somnia.network/api",
           browserURL: process.env.SOMNIA_EXPLORER_URL || "https://shannon-explorer.somnia.network"
+        }
+      },
+      {
+        network: "zetachain",
+        chainId: 7001,
+        urls: {
+          apiURL: process.env.ZETACHAIN_EXPLORER_API_URL || "https://testnet.zetascan.com/api",
+          browserURL: process.env.ZETACHAIN_EXPLORER_URL || "https://testnet.zetascan.com"
         }
       }
     ]
